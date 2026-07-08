@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# Variables de entorno
+.env
+
+# Archivos generados por ScanExam
+batches/*
+output/*
+sitio/*
+models/*
+
+# Mantener carpetas vacías necesarias
+!batches/.gitkeep
+!output/.gitkeep
+!sitio/.gitkeep
+!models/.gitkeep
+!models/README.md
+
+# SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Archivos temporales
+*.log
+*.tmp
