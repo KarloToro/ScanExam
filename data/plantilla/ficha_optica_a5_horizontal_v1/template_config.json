@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0.0",
+  "template_id": "ficha_optica_a5_horizontal_v1",
+  "template_name": "Ficha Óptica A5 Horizontal v1",
+  "canonical_size": {
+    "width_px": 2100,
+    "height_px": 1480
+  },
+  "canonical_view": {
+    "orientation": "landscape",
+    "orientation_es": "horizontal",
+    "reference_file": "plantilla_referencia.png",
+    "semantic_layout": {
+      "top": "encabezado de la ficha",
+      "left": "bloque de identificación del estudiante",
+      "right": "bloque de respuestas",
+      "orientation_marker_position": "top_right"
+    },
+    "pipeline_contract": "P2 debe transformar toda captura real a la imagen canónica definida en canonical_size antes de que P3 use los centros de burbujas."
+  },
+  "physical_size": {
+    "unit": "mm",
+    "width": 210,
+    "height": 148,
+    "px_per_mm": 10,
+    "dpi_reference": 254
+  },
+  "coordinate_system": {
+    "applies_to": "canonical_image_after_perspective_correction",
+    "origin": "top_left",
+    "coordinate_order": "[x, y]",
+    "x_axis": "right",
+    "y_axis": "down",
+    "unit": "px",
+    "note": "Las coordenadas se interpretan únicamente sobre la imagen canónica A5 horizontal. No aplicar sobre la foto cruda."
+  },
+  "bubble": {
+    "diameter_px": 48,
+    "crop_size_px": 64,
+    "analysis_inner_radius_px": 16,
+    "center_source": "Centro = X + 24, Y + 24 desde la esquina superior izquierda del círculo 48x48 en Figma."
+  },
+  "student_id": {
+    "columns": 8,
+    "values": 10,
+    "id_pattern": "id_c{column:02d}_v{value}",
+    "reading_order": "c08_to_c01",
+    "centers_file": "identificacion_centros.json"
+  },
+  "answers": {
+    "questions": 10,
+    "options": ["A", "B", "C", "D", "E"],
+    "id_pattern": "q_{question:02d}_{option}",
+    "centers_file": "respuestas_centros.json"
+  },
+  "perspective": {
+    "markers_file": "marcadores_centros.json",
+    "output_size_px": [2100, 1480],
+    "method": "homography",
+    "note": "Los marcadores se usan para corregir perspectiva y generar la imagen canónica antes de leer burbujas."
+  },
+  "reference_files": {
+    "template_pdf": "FICHA_OPTICA_V1.pdf",
+    "template_image": "plantilla_referencia.png"
+  }
+}

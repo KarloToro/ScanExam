@@ -1,0 +1,12 @@
+{
+  "_comment": "Las coordenadas de marcadores representan el centro geométrico del cuadrado, no su esquina superior izquierda.",
+  "marker_size_px": 100,
+  "coordinate_type": "center",
+  "markers": {
+    "top_left": [180, 180],
+    "top_right": [1920, 180],
+    "bottom_left": [180, 1300],
+    "bottom_right": [1920, 1300]
+  },
+  "orientation_marker": "top_right"
+}
