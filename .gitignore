@@ -14,6 +14,12 @@ output/*
 sitio/*
 models/*
 
+# Archivos de pruebas (P2)
+pruebas/
+debug/
+test/
+
+
 # Mantener carpetas vacías necesarias
 !batches/.gitkeep
 !output/.gitkeep
