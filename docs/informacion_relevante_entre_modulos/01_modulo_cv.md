@@ -18,7 +18,7 @@ Corresponde al paso **"Canonizar ficha"** del diagrama de flujo general
 
 `process_ficha()` procesa **una** foto. `process_batch()` procesa una
 lista de fotos y además escribe `vision_manifest.json` del lote
-completo (Decisión 3.1). `core_pipeline.py` normalmente solo necesita
+completo. `core_pipeline.py` normalmente solo necesita
 `process_batch()`.
 
 ```python
@@ -75,7 +75,7 @@ escribe nada a disco (`canonical_path = None`) y solo se devuelve
 Internamente cachea la plantilla cargada (no relee los JSON en cada
 ficha de un mismo lote).
 
-### Auto-rotación de orientación (Decisión 1)
+### Auto-rotación de orientación 
 
 `process_ficha()`/`process_batch()` ya no rechazan una ficha solo por
 estar rotada 90°/180°/270°: `detect_and_autorotate()` prueba las 4
@@ -89,7 +89,7 @@ La condición de salida sigue siendo siempre: **landscape, marcador
 especial en `top_right`, 2100×1480px** — la auto-rotación solo decide
 cuántos grados girar antes del warp para llegar a esa condición.
 
-### Helper de recorte (Decisión 4)
+### Helper de recorte 
 
 ```python
 from core_vision import extraer_recorte
@@ -113,7 +113,7 @@ Si se necesita más control que `process_ficha()` (por ejemplo, para
 depuración), cada fase también es una función pública independiente:
 
 1. **`detect_and_autorotate(image)`** → envuelve `detect_reference_markers()`
-   con auto-corrección de orientación (Decisión 1). Retorna
+   con auto-corrección de orientación. Retorna
    `(imagen_final, resultado, grados_rotados)`.
 
 2. **`detect_reference_markers(image)`** → detecta los 4 marcadores
@@ -131,7 +131,7 @@ depuración), cada fase también es una función pública independiente:
 4. **`validate_canonical_quality(canonical_image, marker_centers)`**
    → aplica las 4 métricas del Anexo C sobre la imagen ya canonizada.
 
-**Normalización a PNG (Decisión 2):** la entrada sigue aceptando
+**Normalización a PNG:** la entrada sigue aceptando
 `.jpg/.jpeg/.png` indistintamente, pero la salida canonizada siempre
 se guarda como `.png` (sin compresión con pérdida adicional), vía
 `cv2.imwrite` con extensión `.png` — se maneja automáticamente dentro
@@ -251,7 +251,7 @@ no era un problema real de captura, sino un umbral demasiado estricto.
   falso (p. ej. una casilla de "Código de estudiante") ocupe su lugar
   por casualidad geométrica.
 
-## 7. Evidencia visual / debug (Decisión 5)
+## 7. Evidencia visual / debug 
 
 Las salidas obligatorias del contrato de producción son únicamente:
 

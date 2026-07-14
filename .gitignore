@@ -42,3 +42,13 @@ Thumbs.db
 # Archivos temporales
 *.log
 *.tmp
+
+# Bytecode de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Repomix
+repomix-output.xml
+repomix_log.txt
+estructura*.txt

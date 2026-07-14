@@ -38,8 +38,8 @@ BATCH-001/
 │   │   └── ficha_030.png
 │   ├── vision_manifest.json
 │   └── crops/
-│       ├── ficha_001_q01_A.png
-│       ├── ficha_001_q01_B.png
+│       ├── ficha_001_q_01_A.png
+│       ├── ficha_001_q_01_B.png
 │       ├── ...
 │       └── ...
 └── output/
@@ -137,8 +137,8 @@ Contiene los recortes generados por P3 a partir de las fichas canonizadas y de l
 Ejemplo:
 
 ```text
-work/crops/ficha_001_q01_A.png
-work/crops/ficha_001_q01_B.png
+ficha_001_q_01_A.png
+ficha_001_q_01_B.png
 ```
 
 P2 no está obligado a crear esta carpeta.

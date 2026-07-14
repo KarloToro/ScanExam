@@ -1,0 +1,3473 @@
+This file is a merged representation of a subset of the codebase, containing files not matching ignore patterns, combined into a single document by Repomix.
+The content has been processed where line numbers have been added.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching these patterns are excluded: **/*.png, **/*.jpg, **/*.jpeg, **/*.gif, **/*.webp, **/*.bmp, **/*.ico, **/*.svg, **/*.avif, **/*.pyc, **/*.pyo, **/__pycache__/**, **/.pytest_cache/**, **/.mypy_cache/**, **/.ruff_cache/**, **/.venv/**, **/venv/**, **/env/**, **/*.class, **/*.jar, **/*.war, **/*.ear, **/target/**, **/build/**, **/.gradle/**, **/node_modules/**, **/dist/**, **/.next/**, **/.nuxt/**, **/.vite/**, **/.turbo/**, **/coverage/**, **/*.log, **/*.tmp, **/*.bak, **/*.pdf, **/*.zip, **/*.rar, **/*.7z
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Line numbers have been added to the beginning of each line
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+__init__.py
+config.py
+core_classifier.py
+core_pipeline.py
+core_vision.py
+run_pruebas.py
+template_loader.py
+test_core_vision.py
+utilitarios/extracción_coordenadas/00_instrucciones.md
+utilitarios/extracción_coordenadas/01_calculadora_origen_respuestas.py
+utilitarios/extracción_coordenadas/02_generar_json_centros_respuestas.py
+utilitarios/extracción_coordenadas/03_calculadora_origen_identificacion.py
+utilitarios/extracción_coordenadas/04_generar_json_centros_identificacion.py
+utilitarios/extracción_coordenadas/05_crear_template_config.py
+utilitarios/extracción_coordenadas/scanexam_identificacion_xy.txt
+utilitarios/extracción_coordenadas/scanexam_respuestas_xy.txt
+utilitarios/validacion_plantilla/validar_centros.py
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="__init__.py">
+1: 
+</file>
+
+<file path="config.py">
+  1: # app/config.py
+  2: 
+  3: TEMPLATE_ID = "ficha_optica_a5_horizontal_v1"
+  4: 
+  5: OPTIONS = ["A", "B", "C", "D", "E"]
+  6: 
+  7: SUPPORTED_EXAM_TYPES = ["A", "B"]
+  8: 
+  9: SUPPORTED_INPUT_FORMATS = [".jpg", ".jpeg", ".png"]
+ 10: 
+ 11: NORMALIZED_IMAGE_FORMAT = "png"
+ 12: 
+ 13: STUDENT_CODE_DIGITS = 8
+ 14: 
+ 15: MIN_CLASSIFICATION_CONFIDENCE = 0.80
+ 16: 
+ 17: MIN_STUDENT_CODE_CONFIDENCE = 0.75
+ 18: 
+ 19: QUALITY_STATUS = [
+ 20:     "OK",
+ 21:     "ERROR"
+ 22: ]
+ 23: 
+ 24: PROCESSING_STATUS = [
+ 25:     "OK",
+ 26:     "OBSERVED",
+ 27:     "ERROR"
+ 28: ]
+ 29: 
+ 30: MARK_STATUS = [
+ 31:     "SINGLE_MARK",
+ 32:     "BLANK",
+ 33:     "DOUBLE_MARK",
+ 34:     "UNCERTAIN"
+ 35: ]
+ 36: 
+ 37: QUESTION_STATUS = [
+ 38:     "CORRECT",
+ 39:     "INCORRECT",
+ 40:     "BLANK",
+ 41:     "DOUBLE_MARK",
+ 42:     "UNCERTAIN"
+ 43: ]
+ 44: 
+ 45: BUBBLE_CLASSES = [
+ 46:     "EMPTY",
+ 47:     "MARKED",
+ 48:     "GHOST"
+ 49: ]
+ 50: 
+ 51: ISSUE_CODES = [
+ 52:     "LOW_STUDENT_CODE_CONFIDENCE",
+ 53:     "STUDENT_NOT_FOUND",
+ 54:     "DUPLICATED_STUDENT_CODE",
+ 55:     "MISSING_STUDENT_CODE",
+ 56:     "UNCERTAIN_MARK",
+ 57:     "DOUBLE_MARK",
+ 58:     "INVALID_EXAM_TYPE",
+ 59:     "MISSING_REFERENCE_MARKERS",
+ 60:     "EXTREME_PERSPECTIVE",
+ 61:     "TEMPLATE_MISMATCH",
+ 62:     "CORRUPT_FILE"
+ 63: ]
+ 64: 
+ 65: ANNOTATION_COLORS = {
+ 66:     "CORRECT": (0, 180, 0),
+ 67:     "INCORRECT": (0, 0, 255),
+ 68:     "BLANK": (140, 140, 140),
+ 69:     "DOUBLE_MARK": (180, 0, 180),
+ 70:     "UNCERTAIN": (0, 180, 255)
+ 71: }
+ 72: 
+ 73: # ---------------------------------------------------------------------------
+ 74: # P2 — Fase 1: Detección de marcadores de referencia
+ 75: # ---------------------------------------------------------------------------
+ 76: # Estas constantes controlan la búsqueda de los 4 cuadrados de referencia
+ 77: # sobre la FOTO CRUDA (antes de canonizar). No confundir con
+ 78: # marcadores_centros.json, que describe las coordenadas de los marcadores
+ 79: # ya sobre la imagen canónica.
+ 80: #
+ 81: # Como la foto cruda puede tomarse a distintas distancias/ángulos, no se
+ 82: # puede asumir un tamaño absoluto de marcador en píxeles: se filtra por
+ 83: # forma (cuadrado) y por proporción del área de la imagen completa.
+ 84: 
+ 85: # Un marcador válido no puede ser más pequeño que este % del área total
+ 86: # de la foto, ni más grande que el máximo. Evita ruido y evita confundir
+ 87: # el marco completo de la hoja con un marcador.
+ 88: MARKER_MIN_AREA_RATIO = 0.0008
+ 89: MARKER_MAX_AREA_RATIO = 0.05
+ 90: 
+ 91: # Tolerancia de "cuadratura": ancho/alto del contorno candidato debe
+ 92: # estar entre [1 - tol, 1 + tol].
+ 93: MARKER_ASPECT_RATIO_TOLERANCE = 0.25
+ 94: 
+ 95: # Tolerancia del approxPolyDP para aceptar el contorno como polígono de 4 lados.
+ 96: MARKER_POLY_APPROX_EPSILON_RATIO = 0.03
+ 97: 
+ 98: # Marcador especial que define la orientación (debe tener un cuadrado
+ 99: # claro/hueco en su interior). Debe coincidir con "orientation_marker"
+100: # en marcadores_centros.json.
+101: ORIENTATION_MARKER_POSITION = "top_right"
+102: 
+103: # Umbral binario para separar zonas oscuras (marcador) de zonas claras (hoja).
+104: # Se usa como fallback si Otsu no converge bien.
+105: MARKER_BINARY_THRESHOLD_FALLBACK = 100
+106: 
+107: # issue_codes específicos de Fase 1 (ya están cubiertos por ISSUE_CODES,
+108: # se listan aparte para referencia rápida desde core_vision.py)
+109: MARKER_ISSUE_CODES = {
+110:     "NOT_FOUND": "MISSING_REFERENCE_MARKERS",
+111:     "INVALID_ORIENTATION": "EXTREME_PERSPECTIVE",
+112: }
+113: 
+114: # ---------------------------------------------------------------------------
+115: # P2 — Fase 2: Corrección de perspectiva (warp a imagen canónica)
+116: # ---------------------------------------------------------------------------
+117: 
+118: # Orden fijo en el que se arman los arrays de puntos origen/destino para
+119: # cv2.getPerspectiveTransform. El orden en sí no importa siempre y cuando
+120: # origen y destino usen exactamente el mismo, por eso se centraliza aquí.
+121: WARP_POINT_ORDER = ["top_left", "top_right", "bottom_right", "bottom_left"]
+122: 
+123: # Intensidad de gris promedio mínima aceptable en la imagen canónica
+124: # resultante. Un warp que produce una imagen casi negra suele indicar que
+125: # la homografía fue degenerada o que los puntos de origen estaban mal.
+126: # Esto es solo una validación mínima de sanidad: la validación completa
+127: # de zonas negras vive en la métrica M3 (Fase 3, Anexo C).
+128: WARP_MIN_MEAN_GRAY_INTENSITY = 15
+129: 
+130: # issue_code de WARP_FAILED (ver Anexo A). No hay un código dedicado en
+131: # ISSUE_CODES; se reutiliza TEMPLATE_MISMATCH ya que un warp fallido
+132: # significa que la imagen resultante no respeta el contrato de la
+133: # plantilla (tamaño/orientación/estructura canónica esperada).
+134: WARP_FAILED_ISSUE_CODE = "TEMPLATE_MISMATCH"
+135: 
+136: # ---------------------------------------------------------------------------
+137: # P2 — Fase 3: Validación de calidad visual (Anexo C: M1-M4)
+138: # ---------------------------------------------------------------------------
+139: # Todas las métricas se evalúan sobre la imagen YA CANONIZADA (después
+140: # del warp de Fase 2), tal como indica el Anexo C.
+141: #
+142: # Los umbrales son valores empíricos de partida (placeholders
+143: # razonables). Deben calibrarse con un set real de fotos buenas,
+144: # borrosas, oscuras, sobreexpuestas y mal canonizadas (tal como sugiere
+145: # el propio Anexo C), no quedarse en los valores aquí puestos.
+146: 
+147: # M1: Nitidez — varianza del Laplaciano sobre la imagen canónica en
+148: # escala de grises. Por debajo de este valor se considera borrosa.
+149: QUALITY_MIN_SHARPNESS = 75.0
+150: 
+151: # M2: Brillo — promedio de intensidad de píxeles (0-255).
+152: QUALITY_MIN_BRIGHTNESS = 60
+153: QUALITY_MAX_BRIGHTNESS = 220
+154: 
+155: # M3: Zonas negras/vacías — un píxel se considera "oscuro" por debajo
+156: # de este valor de gris, y se mide qué % de la imagen canónica ocupa.
+157: QUALITY_DARK_PIXEL_THRESHOLD = 60
+158: QUALITY_MAX_DARK_AREA_RATIO = 0.15
+159: 
+160: # M4: Verificación de marcadores en posiciones esperadas.
+161: # Margen adicional (px) alrededor del marcador oficial para recortar la
+162: # región de interés donde se busca el marcador ya canonizado.
+163: QUALITY_MARKER_ROI_MARGIN = 20
+164: # % mínimo de píxeles oscuros dentro de la ROI para considerar que el
+165: # marcador efectivamente está ahí (y no se perdió/deformó en el warp).
+166: QUALITY_MIN_MARKER_DARK_RATIO = 0.25
+167: # Tolerancia (px) entre el centroide oscuro encontrado y el centro
+168: # oficial esperado (marcadores_centros.json).
+169: QUALITY_MARKER_POSITION_TOLERANCE_PX = 15
+170: 
+171: # issue_code de LOW_CONFIDENCE (ver Anexo A). Tampoco hay un código
+172: # dedicado en ISSUE_CODES para esto — se deja explícito como pendiente
+173: # de confirmar con el equipo (P1/P3), igual que WARP_FAILED_ISSUE_CODE
+174: # y MARKER_ISSUE_CODES["INVALID_ORIENTATION"].
+175: QUALITY_LOW_CONFIDENCE_ISSUE_CODE = "CORRUPT_FILE"
+</file>
+
+<file path="core_classifier.py">
+1: 
+</file>
+
+<file path="core_pipeline.py">
+1: 
+</file>
+
+<file path="core_vision.py">
+   1: # app/core_vision.py
+   2: """
+   3: P2 — Procesamiento visual de la ficha completa.
+   4: 
+   5: Este módulo se construye por fases:
+   6: 
+   7:     Fase 1 (implementada): detección de los 4 marcadores de referencia
+   8:         sobre la foto cruda y resolución de orientación.
+   9:     Fase 2 (implementada): corrección de perspectiva y transformación
+  10:         a la imagen canónica (homografía). Se adelantó respecto al
+  11:         plan original porque las métricas de calidad de Anexo C
+  12:         (M3, M4) requieren la imagen ya canonizada para tener sentido.
+  13:     Fase 3 (implementada): validación de calidad visual (Anexo C:
+  14:         M1-M4) sobre la imagen ya canonizada.
+  15: 
+  16: Errores técnicos que puede producir este módulo (ver Anexo A del
+  17: documento de flujo):
+  18: 
+  19:     MARKERS_NOT_FOUND     -> no se detectaron los 4 marcadores.
+  20:     INVALID_ORIENTATION   -> se detectaron 4 marcadores, pero el
+  21:                              marcador especial no cae en la posición
+  22:                              de orientación esperada (top_right).
+  23:     WARP_FAILED           -> los marcadores se detectaron bien, pero la
+  24:                              transformación de perspectiva no pudo
+  25:                              calcularse o produjo un resultado inválido.
+  26:     LOW_CONFIDENCE        -> la ficha se canonizó, pero no superó los
+  27:                              controles mínimos de calidad (M1-M4).
+  28: """
+  29: 
+  30: from __future__ import annotations
+  31: 
+  32: import json
+  33: from dataclasses import dataclass, field
+  34: from functools import lru_cache
+  35: from itertools import combinations
+  36: from pathlib import Path
+  37: 
+  38: import cv2
+  39: import numpy as np
+  40: 
+  41: import config
+  42: import template_loader
+  43: 
+  44: 
+  45: # ---------------------------------------------------------------------------
+  46: # Estructuras de datos
+  47: # ---------------------------------------------------------------------------
+  48: 
+  49: @dataclass
+  50: class MarkerCandidate:
+  51:     """Un contorno cuadrado candidato a marcador de referencia."""
+  52: 
+  53:     contour: np.ndarray
+  54:     center: tuple[float, float]
+  55:     area: float
+  56:     bbox: tuple[int, int, int, int]  # x, y, w, h
+  57:     has_inner_hole: bool
+  58: 
+  59: 
+  60: @dataclass
+  61: class MarkerDetectionResult:
+  62:     """
+  63:     Resultado de la detección de marcadores sobre una foto cruda.
+  64: 
+  65:     status:
+  66:         "OK"                  -> los 4 marcadores fueron ubicados y la
+  67:                                   orientación es la esperada.
+  68:         "MARKERS_NOT_FOUND"   -> no se pudo ubicar alguno de los 4
+  69:                                   marcadores (o hay ambigüedad en cuál
+  70:                                   es el marcador de orientación).
+  71:         "INVALID_ORIENTATION" -> los 4 marcadores se ubicaron, pero el
+  72:                                   marcador especial no está donde debería.
+  73: 
+  74:     ordered_points:
+  75:         dict con las 4 llaves "top_left", "top_right", "bottom_left",
+  76:         "bottom_right" -> (x, y) en la foto cruda. Solo viene poblado
+  77:         cuando status == "OK". Este es el insumo directo para la
+  78:         homografía de Fase 3.
+  79:     """
+  80: 
+  81:     status: str
+  82:     issue_code: str | None
+  83:     message: str
+  84:     ordered_points: dict[str, tuple[float, float]] | None = None
+  85:     candidates: list[MarkerCandidate] = field(default_factory=list)
+  86: 
+  87: 
+  88: # ---------------------------------------------------------------------------
+  89: # Fase 1: detección de marcadores
+  90: # ---------------------------------------------------------------------------
+  91: 
+  92: def detect_reference_markers(
+  93:     image: np.ndarray,
+  94:     orientation_marker: str = config.ORIENTATION_MARKER_POSITION,
+  95: ) -> MarkerDetectionResult:
+  96:     """
+  97:     Detecta los 4 marcadores cuadrados de referencia sobre la foto cruda
+  98:     y determina si la orientación coincide con la esperada.
+  99: 
+ 100:     No asume ningún tamaño absoluto de marcador: filtra por forma
+ 101:     (cuadrado) y por proporción respecto al área total de la imagen,
+ 102:     ya que la foto puede tomarse a distintas distancias.
+ 103: 
+ 104:     Parámetros:
+ 105:         image: imagen BGR cargada con cv2.imread (foto cruda, sin
+ 106:             canonizar).
+ 107:         orientation_marker: nombre de la posición que debe tener el
+ 108:             marcador especial (con hueco interior). Por defecto se
+ 109:             toma de config.ORIENTATION_MARKER_POSITION, que debe
+ 110:             coincidir con "orientation_marker" en
+ 111:             marcadores_centros.json.
+ 112: 
+ 113:     Retorna:
+ 114:         MarkerDetectionResult
+ 115:     """
+ 116:     if image is None or image.size == 0:
+ 117:         return MarkerDetectionResult(
+ 118:             status="MARKERS_NOT_FOUND",
+ 119:             issue_code=config.MARKER_ISSUE_CODES["NOT_FOUND"],
+ 120:             message="La imagen recibida está vacía o no pudo cargarse.",
+ 121:         )
+ 122: 
+ 123:     height, width = image.shape[:2]
+ 124:     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+ 125: 
+ 126:     candidates = _find_square_candidates(gray, width, height)
+ 127: 
+ 128:     quad_candidates = _select_best_quad(candidates)
+ 129: 
+ 130:     if quad_candidates is None:
+ 131:         return MarkerDetectionResult(
+ 132:             status="MARKERS_NOT_FOUND",
+ 133:             issue_code=config.MARKER_ISSUE_CODES["NOT_FOUND"],
+ 134:             message=(
+ 135:                 "No se encontraron 4 candidatos cuadrados consistentes entre sí "
+ 136:                 f"(candidatos totales detectados: {len(candidates)})."
+ 137:             ),
+ 138:             candidates=candidates,
+ 139:         )
+ 140: 
+ 141:     corner_map = _order_candidates_by_geometry(quad_candidates)
+ 142: 
+ 143:     # ¿Cuál de los 4 candidatos elegidos tiene el hueco interior?
+ 144:     holed_corners = [
+ 145:         name for name, candidate in corner_map.items()
+ 146:         if candidate.has_inner_hole
+ 147:     ]
+ 148: 
+ 149:     if len(holed_corners) != 1:
+ 150:         return MarkerDetectionResult(
+ 151:             status="MARKERS_NOT_FOUND",
+ 152:             issue_code=config.MARKER_ISSUE_CODES["NOT_FOUND"],
+ 153:             message=(
+ 154:                 "No se pudo identificar de forma inequívoca el marcador de "
+ 155:                 f"orientación (candidatos con hueco interior: {len(holed_corners)}, "
+ 156:                 "se esperaba exactamente 1)."
+ 157:             ),
+ 158:             candidates=candidates,
+ 159:         )
+ 160: 
+ 161:     detected_orientation = holed_corners[0]
+ 162: 
+ 163:     ordered_points = {
+ 164:         name: candidate.center
+ 165:         for name, candidate in corner_map.items()
+ 166:     }
+ 167: 
+ 168:     if detected_orientation != orientation_marker:
+ 169:         return MarkerDetectionResult(
+ 170:             status="INVALID_ORIENTATION",
+ 171:             issue_code=config.MARKER_ISSUE_CODES["INVALID_ORIENTATION"],
+ 172:             message=(
+ 173:                 f"El marcador de orientación se ubicó en '{detected_orientation}', "
+ 174:                 f"pero se esperaba en '{orientation_marker}'. "
+ 175:                 "La ficha probablemente fue fotografiada rotada."
+ 176:             ),
+ 177:             ordered_points=ordered_points,
+ 178:             candidates=candidates,
+ 179:         )
+ 180: 
+ 181:     return MarkerDetectionResult(
+ 182:         status="OK",
+ 183:         issue_code=None,
+ 184:         message="Los 4 marcadores fueron detectados y la orientación es correcta.",
+ 185:         ordered_points=ordered_points,
+ 186:         candidates=candidates,
+ 187:     )
+ 188: 
+ 189: 
+ 190: def detect_and_autorotate(
+ 191:     image: np.ndarray,
+ 192: ) -> tuple[np.ndarray, MarkerDetectionResult, int]:
+ 193:     """
+ 194:     Envuelve detect_reference_markers() con auto-corrección de
+ 195:     orientación (Decisión 1 del equipo, ver 01_modulo_cv.md):
+ 196: 
+ 197:         Si la orientación puede resolverse de forma inequívoca
+ 198:         rotando 90°, 180° o 270°, se corrige automáticamente.
+ 199:         Si no se puede resolver con confianza, se devuelve
+ 200:         INVALID_ORIENTATION (o el error original si nunca se
+ 201:         encontraron los 4 marcadores).
+ 202: 
+ 203:     Retorna (imagen_final, resultado_deteccion, grados_rotados).
+ 204:     La imagen_final ya viene rotada si hubo auto-corrección; los
+ 205:     "ordered_points" de resultado_deteccion son relativos a esa
+ 206:     imagen_final, no a la imagen original.
+ 207:     """
+ 208:     original_result = detect_reference_markers(image)
+ 209: 
+ 210:     if original_result.status == "OK":
+ 211:         return image, original_result, 0
+ 212: 
+ 213:     rotation_flags = {
+ 214:         90: cv2.ROTATE_90_CLOCKWISE,
+ 215:         180: cv2.ROTATE_180,
+ 216:         270: cv2.ROTATE_90_COUNTERCLOCKWISE,
+ 217:     }
+ 218: 
+ 219:     resolved: list[tuple[int, np.ndarray, MarkerDetectionResult]] = []
+ 220: 
+ 221:     for degrees, flag in rotation_flags.items():
+ 222:         rotated_image = cv2.rotate(image, flag)
+ 223:         rotated_result = detect_reference_markers(rotated_image)
+ 224: 
+ 225:         if rotated_result.status == "OK":
+ 226:             resolved.append((degrees, rotated_image, rotated_result))
+ 227: 
+ 228:     if len(resolved) == 1:
+ 229:         degrees, rotated_image, rotated_result = resolved[0]
+ 230:         return rotated_image, rotated_result, degrees
+ 231: 
+ 232:     if len(resolved) == 0:
+ 233:         # No se pudo resolver en ninguna rotación: se conserva el
+ 234:         # motivo de falla original (MARKERS_NOT_FOUND o
+ 235:         # INVALID_ORIENTATION), tal como venía.
+ 236:         return image, original_result, 0
+ 237: 
+ 238:     # Más de una rotación "resuelve" la orientación: ambiguo, no se
+ 239:     # autocorrige con confianza (caso extremadamente improbable dado
+ 240:     # que solo hay 1 marcador especial, pero se cubre por seguridad).
+ 241:     ambiguous_result = MarkerDetectionResult(
+ 242:         status="INVALID_ORIENTATION",
+ 243:         issue_code=config.MARKER_ISSUE_CODES["INVALID_ORIENTATION"],
+ 244:         message=(
+ 245:             f"Se encontraron {len(resolved)} rotaciones distintas que "
+ 246:             "resuelven la orientación de forma aparentemente válida; "
+ 247:             "no se puede autocorregir con confianza."
+ 248:         ),
+ 249:     )
+ 250:     return image, ambiguous_result, 0
+ 251: 
+ 252: 
+ 253: 
+ 254: 
+ 255: def _find_square_candidates(
+ 256:     gray: np.ndarray,
+ 257:     width: int,
+ 258:     height: int,
+ 259: ) -> list[MarkerCandidate]:
+ 260:     """
+ 261:     Busca contornos cuadrados oscuros que puedan ser marcadores de
+ 262:     referencia, en cualquier parte de la imagen.
+ 263:     """
+ 264:     # Otsu separa razonablemente bien "hoja blanca" de "marcador negro"
+ 265:     # en condiciones normales de iluminación.
+ 266:     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+ 267:     _, binary = cv2.threshold(
+ 268:         blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
+ 269:     )
+ 270: 
+ 271:     contours, hierarchy = cv2.findContours(
+ 272:         binary, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE
+ 273:     )
+ 274: 
+ 275:     if hierarchy is None:
+ 276:         return []
+ 277: 
+ 278:     hierarchy = hierarchy[0]  # cv2 envuelve la jerarquía en un array extra
+ 279:     image_area = float(width * height)
+ 280: 
+ 281:     min_area = image_area * config.MARKER_MIN_AREA_RATIO
+ 282:     max_area = image_area * config.MARKER_MAX_AREA_RATIO
+ 283: 
+ 284:     candidates: list[MarkerCandidate] = []
+ 285: 
+ 286:     for index, contour in enumerate(contours):
+ 287:         area = cv2.contourArea(contour)
+ 288: 
+ 289:         if area < min_area or area > max_area:
+ 290:             continue
+ 291: 
+ 292:         perimeter = cv2.arcLength(contour, True)
+ 293:         epsilon = config.MARKER_POLY_APPROX_EPSILON_RATIO * perimeter
+ 294:         approx = cv2.approxPolyDP(contour, epsilon, True)
+ 295: 
+ 296:         if len(approx) != 4 or not cv2.isContourConvex(approx):
+ 297:             continue
+ 298: 
+ 299:         x, y, w, h = cv2.boundingRect(approx)
+ 300: 
+ 301:         if h == 0:
+ 302:             continue
+ 303: 
+ 304:         aspect_ratio = w / h
+ 305:         tol = config.MARKER_ASPECT_RATIO_TOLERANCE
+ 306: 
+ 307:         if not (1 - tol <= aspect_ratio <= 1 + tol):
+ 308:             continue
+ 309: 
+ 310:         center = (x + w / 2.0, y + h / 2.0)
+ 311:         has_hole = _has_inner_hole(index, hierarchy, contours, min_area)
+ 312: 
+ 313:         candidates.append(
+ 314:             MarkerCandidate(
+ 315:                 contour=approx,
+ 316:                 center=center,
+ 317:                 area=area,
+ 318:                 bbox=(x, y, w, h),
+ 319:                 has_inner_hole=has_hole,
+ 320:             )
+ 321:         )
+ 322: 
+ 323:     return candidates
+ 324: 
+ 325: 
+ 326: def _has_inner_hole(
+ 327:     contour_index: int,
+ 328:     hierarchy: np.ndarray,
+ 329:     contours: list[np.ndarray],
+ 330:     min_child_area: float,
+ 331: ) -> bool:
+ 332:     """
+ 333:     Revisa si el contorno tiene al menos un hijo (hueco interior) con
+ 334:     área significativa. Esto distingue al marcador de orientación
+ 335:     (cuadrado negro con cuadrado claro adentro) de los 3 marcadores
+ 336:     sólidos.
+ 337: 
+ 338:     hierarchy[i] = [next, previous, first_child, parent]
+ 339:     """
+ 340:     first_child = hierarchy[contour_index][2]
+ 341: 
+ 342:     child_index = first_child
+ 343:     while child_index != -1:
+ 344:         child_area = cv2.contourArea(contours[child_index])
+ 345: 
+ 346:         # El hueco debe ser una fracción razonable del marcador padre,
+ 347:         # no ruido de compresión/JPEG.
+ 348:         if child_area >= min_child_area * 0.15:
+ 349:             return True
+ 350: 
+ 351:         child_index = hierarchy[child_index][0]  # siguiente hermano
+ 352: 
+ 353:     return False
+ 354: 
+ 355: 
+ 356: def _hull_area(centers: list[tuple[float, float]]) -> float:
+ 357:     """Área del cuadrilátero convexo formado por 4 (o más) puntos."""
+ 358:     points = np.array(centers, dtype=np.float32)
+ 359:     hull = cv2.convexHull(points)
+ 360:     return cv2.contourArea(hull)
+ 361: 
+ 362: 
+ 363: def _select_best_quad(
+ 364:     candidates: list[MarkerCandidate],
+ 365: ) -> list[MarkerCandidate] | None:
+ 366:     """
+ 367:     De entre todos los candidatos cuadrados detectados, selecciona el
+ 368:     grupo de 4 que forma el cuadrilátero convexo de mayor área.
+ 369: 
+ 370:     Esto es deliberadamente independiente de la posición del candidato
+ 371:     dentro del encuadre de la foto (a diferencia de un enfoque por
+ 372:     zonas fijas), porque en fotos reales la hoja rara vez llena todo
+ 373:     el encuadre y puede estar rotada o inclinada. También permite
+ 374:     ignorar ruido o una segunda ficha parcialmente visible, ya que la
+ 375:     ficha principal en primer plano casi siempre forma el
+ 376:     cuadrilátero más grande.
+ 377:     """
+ 378:     if len(candidates) < 4:
+ 379:         return None
+ 380: 
+ 381:     if len(candidates) == 4:
+ 382:         return candidates
+ 383: 
+ 384:     best_group: tuple[MarkerCandidate, ...] | None = None
+ 385:     best_area = -1.0
+ 386: 
+ 387:     for group in combinations(candidates, 4):
+ 388:         area = _hull_area([c.center for c in group])
+ 389: 
+ 390:         if area > best_area:
+ 391:             best_area = area
+ 392:             best_group = group
+ 393: 
+ 394:     return list(best_group) if best_group is not None else None
+ 395: 
+ 396: 
+ 397: def _order_candidates_by_geometry(
+ 398:     candidates: list[MarkerCandidate],
+ 399: ) -> dict[str, MarkerCandidate]:
+ 400:     """
+ 401:     Ordena 4 candidatos como top_left/top_right/bottom_left/bottom_right
+ 402:     usando la heurística estándar de suma/diferencia de coordenadas.
+ 403:     Es robusta a inclinación y a que la hoja no esté perfectamente
+ 404:     encuadrada, porque compara los candidatos entre sí en vez de contra
+ 405:     posiciones fijas del frame completo.
+ 406:     """
+ 407:     centers = np.array([c.center for c in candidates], dtype=np.float32)
+ 408:     sums = centers.sum(axis=1)
+ 409:     diffs = centers[:, 0] - centers[:, 1]  # x - y
+ 410: 
+ 411:     return {
+ 412:         "top_left": candidates[int(np.argmin(sums))],
+ 413:         "bottom_right": candidates[int(np.argmax(sums))],
+ 414:         "top_right": candidates[int(np.argmax(diffs))],
+ 415:         "bottom_left": candidates[int(np.argmin(diffs))],
+ 416:     }
+ 417: 
+ 418: 
+ 419: # ---------------------------------------------------------------------------
+ 420: # ---------------------------------------------------------------------------
+ 421: # Fase 2: corrección de perspectiva (warp a imagen canónica)
+ 422: # ---------------------------------------------------------------------------
+ 423: 
+ 424: @dataclass
+ 425: class WarpResult:
+ 426:     """
+ 427:     Resultado de la corrección de perspectiva sobre una foto cruda ya
+ 428:     con marcadores detectados (status == "OK" en MarkerDetectionResult).
+ 429: 
+ 430:     status:
+ 431:         "OK"           -> se generó la imagen canónica correctamente.
+ 432:         "WARP_FAILED"  -> la homografía no pudo calcularse o el
+ 433:                           resultado no pasó las validaciones mínimas
+ 434:                           de sanidad.
+ 435:     """
+ 436: 
+ 437:     status: str
+ 438:     issue_code: str | None
+ 439:     message: str
+ 440:     canonical_image: np.ndarray | None = None
+ 441:     homography: np.ndarray | None = None
+ 442: 
+ 443: 
+ 444: def correct_perspective(
+ 445:     image: np.ndarray,
+ 446:     detected_points: dict[str, tuple[float, float]],
+ 447:     marker_centers: dict[str, list[int]],
+ 448:     canonical_width: int,
+ 449:     canonical_height: int,
+ 450: ) -> WarpResult:
+ 451:     """
+ 452:     Corrige la perspectiva de la foto cruda y la transforma a la imagen
+ 453:     canónica, usando los 4 marcadores detectados (Fase 1) como origen y
+ 454:     las coordenadas oficiales de marcadores_centros.json como destino.
+ 455: 
+ 456:     Parámetros:
+ 457:         image: foto cruda original (BGR).
+ 458:         detected_points: "ordered_points" de un MarkerDetectionResult
+ 459:             con status == "OK" (top_left/top_right/bottom_left/bottom_right
+ 460:             en la foto cruda).
+ 461:         marker_centers: centros oficiales de marcadores en la imagen
+ 462:             canónica (viene de TemplateContract.marker_centers, es decir,
+ 463:             de marcadores_centros.json vía template_loader).
+ 464:         canonical_width / canonical_height: tamaño de salida esperado
+ 465:             (TemplateContract.canonical_width / canonical_height).
+ 466: 
+ 467:     Retorna:
+ 468:         WarpResult
+ 469:     """
+ 470:     missing_keys = [
+ 471:         key for key in config.WARP_POINT_ORDER
+ 472:         if key not in detected_points or key not in marker_centers
+ 473:     ]
+ 474: 
+ 475:     if missing_keys:
+ 476:         return WarpResult(
+ 477:             status="WARP_FAILED",
+ 478:             issue_code=config.WARP_FAILED_ISSUE_CODE,
+ 479:             message=(
+ 480:                 "Faltan puntos de referencia para calcular la homografía: "
+ 481:                 f"{', '.join(missing_keys)}."
+ 482:             ),
+ 483:         )
+ 484: 
+ 485:     src_points = np.array(
+ 486:         [detected_points[key] for key in config.WARP_POINT_ORDER],
+ 487:         dtype=np.float32,
+ 488:     )
+ 489: 
+ 490:     dst_points = np.array(
+ 491:         [marker_centers[key] for key in config.WARP_POINT_ORDER],
+ 492:         dtype=np.float32,
+ 493:     )
+ 494: 
+ 495:     # Un cuadrilátero degenerado (puntos casi colineales, área ~0) no
+ 496:     # puede producir una homografía válida.
+ 497:     src_area = cv2.contourArea(src_points)
+ 498: 
+ 499:     if src_area <= 0:
+ 500:         return WarpResult(
+ 501:             status="WARP_FAILED",
+ 502:             issue_code=config.WARP_FAILED_ISSUE_CODE,
+ 503:             message=(
+ 504:                 "Los 4 puntos de origen no forman un cuadrilátero válido "
+ 505:                 "(área nula o puntos colineales)."
+ 506:             ),
+ 507:         )
+ 508: 
+ 509:     try:
+ 510:         homography = cv2.getPerspectiveTransform(src_points, dst_points)
+ 511:     except cv2.error as error:
+ 512:         return WarpResult(
+ 513:             status="WARP_FAILED",
+ 514:             issue_code=config.WARP_FAILED_ISSUE_CODE,
+ 515:             message=f"No se pudo calcular la homografía: {error}",
+ 516:         )
+ 517: 
+ 518:     canonical_image = cv2.warpPerspective(
+ 519:         image,
+ 520:         homography,
+ 521:         (canonical_width, canonical_height),
+ 522:     )
+ 523: 
+ 524:     # Validación mínima de sanidad: si el resultado es casi completamente
+ 525:     # negro, algo salió mal en el mapeo (orden de puntos incorrecto,
+ 526:     # homografía degenerada, etc.). La validación exhaustiva de zonas
+ 527:     # negras vive en la métrica M3 (Fase 3).
+ 528:     mean_intensity = float(
+ 529:         cv2.cvtColor(canonical_image, cv2.COLOR_BGR2GRAY).mean()
+ 530:     )
+ 531: 
+ 532:     if mean_intensity < config.WARP_MIN_MEAN_GRAY_INTENSITY:
+ 533:         return WarpResult(
+ 534:             status="WARP_FAILED",
+ 535:             issue_code=config.WARP_FAILED_ISSUE_CODE,
+ 536:             message=(
+ 537:                 "La imagen canónica resultante es casi completamente "
+ 538:                 f"negra (intensidad promedio: {mean_intensity:.1f}). "
+ 539:                 "La homografía probablemente es incorrecta."
+ 540:             ),
+ 541:             homography=homography,
+ 542:         )
+ 543: 
+ 544:     return WarpResult(
+ 545:         status="OK",
+ 546:         issue_code=None,
+ 547:         message="Perspectiva corregida correctamente.",
+ 548:         canonical_image=canonical_image,
+ 549:         homography=homography,
+ 550:     )
+ 551: 
+ 552: 
+ 553: def extraer_recorte(
+ 554:     canonical_image: np.ndarray,
+ 555:     center: list[int] | tuple[float, float],
+ 556:     crop_size: int,
+ 557: ) -> np.ndarray:
+ 558:     """
+ 559:     Helper de apoyo (Decisión 4 del equipo, ver 01_modulo_cv.md): recibe
+ 560:     la imagen canonizada, un centro [x, y] y un tamaño de recorte, y
+ 561:     devuelve el crop cuadrado alrededor de ese centro.
+ 562: 
+ 563:     Recorrer todos los centros de respuestas_centros.json /
+ 564:     identificacion_centros.json, generar todos los crops y construir
+ 565:     crop_manifest.json es responsabilidad de P3 — esta función solo
+ 566:     resuelve el recorte individual.
+ 567: 
+ 568:     Si el centro está cerca del borde de la imagen, el recorte se
+ 569:     desplaza lo necesario para mantener exactamente crop_size x
+ 570:     crop_size en vez de devolver un recorte más chico.
+ 571:     """
+ 572:     cx, cy = center
+ 573:     half = crop_size // 2
+ 574:     height, width = canonical_image.shape[:2]
+ 575: 
+ 576:     x1 = int(round(cx)) - half
+ 577:     y1 = int(round(cy)) - half
+ 578: 
+ 579:     # Si el crop se sale por un borde, se desplaza para conservar el
+ 580:     # tamaño exacto (en vez de recortar el crop resultante).
+ 581:     x1 = max(0, min(x1, width - crop_size))
+ 582:     y1 = max(0, min(y1, height - crop_size))
+ 583: 
+ 584:     x2 = x1 + crop_size
+ 585:     y2 = y1 + crop_size
+ 586: 
+ 587:     return canonical_image[y1:y2, x1:x2].copy()
+ 588: 
+ 589: 
+ 590: # ---------------------------------------------------------------------------
+ 591: # Fase 3: validación de calidad visual (Anexo C: M1-M4)
+ 592: # ---------------------------------------------------------------------------
+ 593: 
+ 594: @dataclass
+ 595: class QualityMetrics:
+ 596:     """Valores crudos de cada métrica, útiles para depuración/calibración."""
+ 597: 
+ 598:     sharpness: float
+ 599:     sharpness_passed: bool
+ 600: 
+ 601:     brightness: float
+ 602:     brightness_passed: bool
+ 603: 
+ 604:     dark_area_ratio: float
+ 605:     dark_area_passed: bool
+ 606: 
+ 607:     marker_offsets_px: dict[str, float | None]
+ 608:     markers_passed: bool
+ 609: 
+ 610: 
+ 611: @dataclass
+ 612: class QualityValidationResult:
+ 613:     """
+ 614:     Resultado de aplicar las métricas M1-M4 (Anexo C) sobre la imagen
+ 615:     ya canonizada.
+ 616: 
+ 617:     status:
+ 618:         "OK"              -> pasó las 4 métricas.
+ 619:         "LOW_CONFIDENCE"   -> alguna métrica falló.
+ 620:     """
+ 621: 
+ 622:     status: str
+ 623:     issue_code: str | None
+ 624:     message: str
+ 625:     metrics: QualityMetrics
+ 626: 
+ 627: 
+ 628: def validate_canonical_quality(
+ 629:     canonical_image: np.ndarray,
+ 630:     marker_centers: dict[str, list[int]],
+ 631:     marker_size_px: int = 100,
+ 632: ) -> QualityValidationResult:
+ 633:     """
+ 634:     Aplica las métricas M1 (nitidez), M2 (brillo), M3 (zonas negras) y
+ 635:     M4 (posición de marcadores) sobre la imagen canónica, tal como
+ 636:     describe el Anexo C.
+ 637: 
+ 638:     Parámetros:
+ 639:         canonical_image: imagen ya corregida por Fase 2
+ 640:             (correct_perspective).
+ 641:         marker_centers: centros oficiales de marcadores._centros.json
+ 642:             (TemplateContract.marker_centers).
+ 643:         marker_size_px: tamaño físico del marcador en la plantilla
+ 644:             (marker_size_px de marcadores_centros.json).
+ 645: 
+ 646:     Retorna:
+ 647:         QualityValidationResult
+ 648:     """
+ 649:     gray = cv2.cvtColor(canonical_image, cv2.COLOR_BGR2GRAY)
+ 650: 
+ 651:     # --- M1: nitidez ---
+ 652:     sharpness = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+ 653:     sharpness_passed = sharpness >= config.QUALITY_MIN_SHARPNESS
+ 654: 
+ 655:     # --- M2: brillo ---
+ 656:     brightness = float(gray.mean())
+ 657:     brightness_passed = (
+ 658:         config.QUALITY_MIN_BRIGHTNESS <= brightness <= config.QUALITY_MAX_BRIGHTNESS
+ 659:     )
+ 660: 
+ 661:     # --- M3: zonas negras/vacías ---
+ 662:     dark_mask = gray < config.QUALITY_DARK_PIXEL_THRESHOLD
+ 663:     dark_area_ratio = float(dark_mask.sum()) / dark_mask.size
+ 664:     dark_area_passed = dark_area_ratio <= config.QUALITY_MAX_DARK_AREA_RATIO
+ 665: 
+ 666:     # --- M4: verificación de marcadores en posiciones esperadas ---
+ 667:     marker_offsets: dict[str, float | None] = {}
+ 668:     markers_passed = True
+ 669: 
+ 670:     for name, expected_center in marker_centers.items():
+ 671:         offset = _measure_marker_offset(
+ 672:             gray, expected_center, marker_size_px
+ 673:         )
+ 674:         marker_offsets[name] = offset
+ 675: 
+ 676:         if offset is None or offset > config.QUALITY_MARKER_POSITION_TOLERANCE_PX:
+ 677:             markers_passed = False
+ 678: 
+ 679:     metrics = QualityMetrics(
+ 680:         sharpness=sharpness,
+ 681:         sharpness_passed=sharpness_passed,
+ 682:         brightness=brightness,
+ 683:         brightness_passed=brightness_passed,
+ 684:         dark_area_ratio=dark_area_ratio,
+ 685:         dark_area_passed=dark_area_passed,
+ 686:         marker_offsets_px=marker_offsets,
+ 687:         markers_passed=markers_passed,
+ 688:     )
+ 689: 
+ 690:     failed_checks = []
+ 691: 
+ 692:     if not sharpness_passed:
+ 693:         failed_checks.append(f"M1 nitidez ({sharpness:.1f} < {config.QUALITY_MIN_SHARPNESS})")
+ 694: 
+ 695:     if not brightness_passed:
+ 696:         failed_checks.append(f"M2 brillo ({brightness:.1f})")
+ 697: 
+ 698:     if not dark_area_passed:
+ 699:         failed_checks.append(
+ 700:             f"M3 zonas negras ({dark_area_ratio * 100:.1f}% > "
+ 701:             f"{config.QUALITY_MAX_DARK_AREA_RATIO * 100:.1f}%)"
+ 702:         )
+ 703: 
+ 704:     if not markers_passed:
+ 705:         failed_checks.append(f"M4 posición de marcadores ({marker_offsets})")
+ 706: 
+ 707:     if failed_checks:
+ 708:         return QualityValidationResult(
+ 709:             status="LOW_CONFIDENCE",
+ 710:             issue_code=config.QUALITY_LOW_CONFIDENCE_ISSUE_CODE,
+ 711:             message=(
+ 712:                 "La ficha canonizada no superó los controles mínimos de "
+ 713:                 f"calidad: {'; '.join(failed_checks)}."
+ 714:             ),
+ 715:             metrics=metrics,
+ 716:         )
+ 717: 
+ 718:     return QualityValidationResult(
+ 719:         status="OK",
+ 720:         issue_code=None,
+ 721:         message="La ficha canonizada superó las 4 métricas de calidad.",
+ 722:         metrics=metrics,
+ 723:     )
+ 724: 
+ 725: 
+ 726: def _measure_marker_offset(
+ 727:     gray: np.ndarray,
+ 728:     expected_center: list[int],
+ 729:     marker_size_px: int,
+ 730: ) -> float | None:
+ 731:     """
+ 732:     Recorta una región de interés alrededor del centro esperado de un
+ 733:     marcador (M4) y mide qué tan lejos está el centroide oscuro real
+ 734:     respecto al centro oficial. Retorna None si no se encontró
+ 735:     suficiente presencia oscura en la ROI (el marcador se perdió o
+ 736:     deformó en el warp).
+ 737:     """
+ 738:     half = marker_size_px // 2 + config.QUALITY_MARKER_ROI_MARGIN
+ 739:     cx, cy = expected_center
+ 740: 
+ 741:     height, width = gray.shape[:2]
+ 742: 
+ 743:     x1 = max(0, int(cx - half))
+ 744:     y1 = max(0, int(cy - half))
+ 745:     x2 = min(width, int(cx + half))
+ 746:     y2 = min(height, int(cy + half))
+ 747: 
+ 748:     roi = gray[y1:y2, x1:x2]
+ 749: 
+ 750:     if roi.size == 0:
+ 751:         return None
+ 752: 
+ 753:     dark_mask = roi < config.QUALITY_DARK_PIXEL_THRESHOLD
+ 754:     dark_ratio = float(dark_mask.sum()) / dark_mask.size
+ 755: 
+ 756:     if dark_ratio < config.QUALITY_MIN_MARKER_DARK_RATIO:
+ 757:         return None
+ 758: 
+ 759:     ys, xs = np.nonzero(dark_mask)
+ 760:     centroid_x = x1 + float(xs.mean())
+ 761:     centroid_y = y1 + float(ys.mean())
+ 762: 
+ 763:     offset = float(np.hypot(centroid_x - cx, centroid_y - cy))
+ 764:     return offset
+ 765: 
+ 766: 
+ 767: # ---------------------------------------------------------------------------
+ 768: # Contrato público de P2: process_ficha()
+ 769: # ---------------------------------------------------------------------------
+ 770: # Esta es la única función que core_pipeline.py (y por extensión P3)
+ 771: # debería necesitar llamar. Consolida las 3 fases y traduce cualquier
+ 772: # falla técnica (Anexo A: MARKERS_NOT_FOUND, INVALID_ORIENTATION,
+ 773: # WARP_FAILED, LOW_CONFIDENCE) al mismo desenlace de pipeline: la ficha
+ 774: # no pudo canonizarse, así que se marca como ERROR y no se genera
+ 775: # score/publishable (ver "Canonizar ficha" -> "Ficha canonizada
+ 776: # correctamente?" en el diagrama de flujo). El detalle de CUÁL de los
+ 777: # 4 errores ocurrió viaja en issue_code/message para reportes y
+ 778: # depuración, pero P3 no necesita distinguir entre ellos para decidir
+ 779: # su propio flujo.
+ 780: 
+ 781: @dataclass
+ 782: class FichaProcessingResult:
+ 783:     """
+ 784:     Resultado consolidado de process_ficha().
+ 785: 
+ 786:     status:
+ 787:         "OK"    -> la ficha se canonizó y pasó control de calidad.
+ 788:                    canonical_image queda listo para que P3 lea burbujas
+ 789:                    usando los centros de respuestas_centros.json /
+ 790:                    identificacion_centros.json directamente sobre esta
+ 791:                    imagen (sin transformación adicional).
+ 792:         "ERROR" -> alguna de las 3 fases falló. canonical_image es
+ 793:                    None. issue_code indica el motivo específico
+ 794:                    (ver Anexo A) para reportes/depuración.
+ 795: 
+ 796:     issue_code:
+ 797:         Código de config.ISSUE_CODES (decisión ya confirmada con el
+ 798:         equipo: se reutilizan MISSING_REFERENCE_MARKERS,
+ 799:         EXTREME_PERSPECTIVE, TEMPLATE_MISMATCH y CORRUPT_FILE en vez
+ 800:         de crear códigos nuevos). Distinto del campo "issue_code" que
+ 801:         va en vision_manifest.json (ver manifest_entry), que usa el
+ 802:         vocabulario técnico de Anexo A tal como pidió el equipo
+ 803:         (MARKERS_NOT_FOUND / INVALID_ORIENTATION / WARP_FAILED /
+ 804:         LOW_CONFIDENCE) para ese archivo específico.
+ 805: 
+ 806:     canonical_path:
+ 807:         Ruta donde se guardó el PNG canónico en disco, si se pasó
+ 808:         output_root. None si no se persistió a disco o si status es
+ 809:         "ERROR".
+ 810: 
+ 811:     debug:
+ 812:         Detalle interno por fase (no es parte estricta del contrato,
+ 813:         pero es útil para logging).
+ 814: 
+ 815:     manifest_entry:
+ 816:         Dict con el formato exacto que espera vision_manifest.json
+ 817:         (Decisión 3.1 del equipo). process_batch() usa este campo
+ 818:         para construir el manifest de un lote completo; también está
+ 819:         disponible acá por si el llamador quiere armar su propio
+ 820:         manifest de otra forma.
+ 821:     """
+ 822: 
+ 823:     status: str
+ 824:     issue_code: str | None
+ 825:     message: str
+ 826:     canonical_image: np.ndarray | None = None
+ 827:     canonical_path: Path | None = None
+ 828:     debug: dict | None = None
+ 829:     manifest_entry: dict | None = None
+ 830: 
+ 831: 
+ 832: @lru_cache(maxsize=4)
+ 833: def _get_cached_template(template_id: str):
+ 834:     """
+ 835:     Evita recargar los JSON de plantilla en cada ficha de un mismo
+ 836:     lote. Un lote completo (Anexo B) puede tener decenas de fichas;
+ 837:     releer y revalidar los JSON de plantilla en cada una sería
+ 838:     trabajo repetido innecesario.
+ 839:     """
+ 840:     return template_loader.load_template(template_id=template_id)
+ 841: 
+ 842: 
+ 843: def _build_manifest_entry(
+ 844:     filename: str | None,
+ 845:     status: str,
+ 846:     canonical_path_for_manifest: str | None,
+ 847:     technical_code: str | None,
+ 848:     quality_metrics: dict | None,
+ 849: ) -> dict:
+ 850:     """
+ 851:     Arma la entrada de vision_manifest.json (Decisión 3.1 del equipo).
+ 852:     "issue_code" acá usa el vocabulario técnico de Anexo A
+ 853:     (MARKERS_NOT_FOUND / INVALID_ORIENTATION / WARP_FAILED /
+ 854:     LOW_CONFIDENCE), no el config.ISSUE_CODES de FichaProcessingResult
+ 855:     -- son dos catálogos distintos para dos consumidores distintos.
+ 856:     """
+ 857:     return {
+ 858:         "file": filename,
+ 859:         "status": status,
+ 860:         "canonical_path": canonical_path_for_manifest,
+ 861:         "issue_code": technical_code,
+ 862:         "quality_metrics": quality_metrics,
+ 863:     }
+ 864: 
+ 865: 
+ 866: def process_ficha(
+ 867:     image: np.ndarray | str | Path,
+ 868:     template_id: str = config.TEMPLATE_ID,
+ 869:     output_root: str | Path | None = None,
+ 870:     original_filename: str | None = None,
+ 871: ) -> FichaProcessingResult:
+ 872:     """
+ 873:     Punto de entrada único de P2. Recibe una foto cruda (ruta o imagen
+ 874:     ya cargada con cv2) y devuelve la imagen canónica lista para P3, o
+ 875:     un ERROR con el motivo técnico si la ficha no pudo procesarse.
+ 876: 
+ 877:     Si se pasa output_root (Decisión 3 del equipo), además:
+ 878:         - guarda la ficha canonizada como PNG en
+ 879:           {output_root}/normalized/{nombre}.png
+ 880:         - deja lista la entrada de vision_manifest.json en
+ 881:           resultado.manifest_entry (proceso_batch() la usa para
+ 882:           escribir el manifest completo del lote).
+ 883: 
+ 884:     output_root representa la carpeta "work/" del lote (no
+ 885:     BATCH-001/ completo): P2 no conoce ni construye la estructura
+ 886:     completa del batch, solo escribe dentro de la carpeta que se le
+ 887:     pase por parámetro.
+ 888: 
+ 889:     Uso esperado desde core_pipeline.py:
+ 890: 
+ 891:         resultado = process_ficha(ruta_a_la_foto, output_root=work_dir)
+ 892: 
+ 893:         if resultado.status == "ERROR":
+ 894:             # mover la foto a rechazadas/, registrar issue_code en
+ 895:             # reporte_observaciones.xlsx, continuar con la siguiente ficha.
+ 896:             ...
+ 897:         else:
+ 898:             # resultado.canonical_path ya quedó escrito en disco.
+ 899:             ...
+ 900:     """
+ 901:     template = _get_cached_template(template_id)
+ 902: 
+ 903:     filename = original_filename
+ 904: 
+ 905:     if isinstance(image, (str, Path)):
+ 906:         image_path = Path(image)
+ 907:         filename = filename or image_path.name
+ 908:         raw_image = cv2.imread(str(image_path))
+ 909: 
+ 910:         if raw_image is None:
+ 911:             return FichaProcessingResult(
+ 912:                 status="ERROR",
+ 913:                 issue_code="CORRUPT_FILE",
+ 914:                 message=f"No se pudo leer el archivo de imagen: {image}",
+ 915:                 manifest_entry=_build_manifest_entry(
+ 916:                     filename, "ERROR", None, "CORRUPT_FILE", None
+ 917:                 ),
+ 918:             )
+ 919:     else:
+ 920:         raw_image = image
+ 921: 
+ 922:     if raw_image is None or raw_image.size == 0:
+ 923:         return FichaProcessingResult(
+ 924:             status="ERROR",
+ 925:             issue_code="CORRUPT_FILE",
+ 926:             message="La imagen recibida está vacía o corrupta.",
+ 927:             manifest_entry=_build_manifest_entry(
+ 928:                 filename, "ERROR", None, "CORRUPT_FILE", None
+ 929:             ),
+ 930:         )
+ 931: 
+ 932:     # --- Fase 1: marcadores (con auto-rotación, Decisión 1) ---
+ 933:     imagen_final, deteccion, grados_rotados = detect_and_autorotate(raw_image)
+ 934: 
+ 935:     if deteccion.status != "OK":
+ 936:         return FichaProcessingResult(
+ 937:             status="ERROR",
+ 938:             issue_code=deteccion.issue_code,
+ 939:             message=deteccion.message,
+ 940:             debug={"fase": "marcadores", "detalle": deteccion.message},
+ 941:             manifest_entry=_build_manifest_entry(
+ 942:                 filename, "ERROR", None, deteccion.status, None
+ 943:             ),
+ 944:         )
+ 945: 
+ 946:     # --- Fase 2: warp ---
+ 947:     warp = correct_perspective(
+ 948:         image=imagen_final,
+ 949:         detected_points=deteccion.ordered_points,
+ 950:         marker_centers=template.marker_centers,
+ 951:         canonical_width=template.canonical_width,
+ 952:         canonical_height=template.canonical_height,
+ 953:     )
+ 954: 
+ 955:     if warp.status != "OK":
+ 956:         return FichaProcessingResult(
+ 957:             status="ERROR",
+ 958:             issue_code=warp.issue_code,
+ 959:             message=warp.message,
+ 960:             debug={"fase": "warp", "detalle": warp.message},
+ 961:             manifest_entry=_build_manifest_entry(
+ 962:                 filename, "ERROR", None, "WARP_FAILED", None
+ 963:             ),
+ 964:         )
+ 965: 
+ 966:     # --- Fase 3: calidad ---
+ 967:     calidad = validate_canonical_quality(
+ 968:         canonical_image=warp.canonical_image,
+ 969:         marker_centers=template.marker_centers,
+ 970:     )
+ 971: 
+ 972:     if calidad.status != "OK":
+ 973:         quality_metrics_manifest = {
+ 974:             "blur_score": calidad.metrics.sharpness,
+ 975:             "brightness": calidad.metrics.brightness,
+ 976:             "black_ratio": calidad.metrics.dark_area_ratio,
+ 977:         }
+ 978:         return FichaProcessingResult(
+ 979:             status="ERROR",
+ 980:             issue_code=calidad.issue_code,
+ 981:             message=calidad.message,
+ 982:             debug={
+ 983:                 "fase": "calidad",
+ 984:                 "detalle": calidad.message,
+ 985:                 "m1_nitidez": calidad.metrics.sharpness,
+ 986:                 "m2_brillo": calidad.metrics.brightness,
+ 987:                 "m3_zonas_negras": calidad.metrics.dark_area_ratio,
+ 988:                 "m4_offsets_px": calidad.metrics.marker_offsets_px,
+ 989:             },
+ 990:             manifest_entry=_build_manifest_entry(
+ 991:                 filename, "ERROR", None, "LOW_CONFIDENCE", quality_metrics_manifest
+ 992:             ),
+ 993:         )
+ 994: 
+ 995:     debug_info = {
+ 996:         "rotacion_aplicada_grados": grados_rotados,
+ 997:         "m1_nitidez": calidad.metrics.sharpness,
+ 998:         "m2_brillo": calidad.metrics.brightness,
+ 999:         "m3_zonas_negras": calidad.metrics.dark_area_ratio,
+1000:         "m4_offsets_px": calidad.metrics.marker_offsets_px,
+1001:     }
+1002: 
+1003:     canonical_path = None
+1004:     canonical_path_for_manifest = None
+1005: 
+1006:     if output_root is not None:
+1007:         canonical_path, canonical_path_for_manifest = _guardar_canonica_png(
+1008:             warp.canonical_image, output_root, filename
+1009:         )
+1010: 
+1011:     return FichaProcessingResult(
+1012:         status="OK",
+1013:         issue_code=None,
+1014:         message="Ficha canonizada y validada correctamente.",
+1015:         canonical_image=warp.canonical_image,
+1016:         canonical_path=canonical_path,
+1017:         debug=debug_info,
+1018:         manifest_entry=_build_manifest_entry(
+1019:             filename, "OK", canonical_path_for_manifest, None, None
+1020:         ),
+1021:     )
+1022: 
+1023: 
+1024: def _guardar_canonica_png(
+1025:     canonical_image: np.ndarray,
+1026:     output_root: str | Path,
+1027:     filename: str | None,
+1028: ) -> tuple[Path, str]:
+1029:     """
+1030:     Guarda la ficha canonizada como PNG en {output_root}/normalized/
+1031:     (Decisión 2 y 3 del equipo). Retorna (path_absoluto,
+1032:     path_para_manifest), donde path_para_manifest se arma prefijado
+1033:     con el nombre de carpeta de output_root (p. ej. "work/normalized/
+1034:     ficha_001.png"), tal como muestra el ejemplo de vision_manifest.json
+1035:     acordado con el equipo.
+1036:     """
+1037:     output_root = Path(output_root)
+1038:     normalized_dir = output_root / "normalized"
+1039:     normalized_dir.mkdir(parents=True, exist_ok=True)
+1040: 
+1041:     stem = Path(filename).stem if filename else "ficha"
+1042:     png_path = normalized_dir / f"{stem}.png"
+1043: 
+1044:     cv2.imwrite(str(png_path), canonical_image)
+1045: 
+1046:     path_for_manifest = str(
+1047:         Path(output_root.name) / "normalized" / f"{stem}.png"
+1048:     ).replace("\\", "/")
+1049: 
+1050:     return png_path, path_for_manifest
+1051: 
+1052: 
+1053: def process_batch(
+1054:     paths: list[str | Path],
+1055:     output_root: str | Path,
+1056:     template_id: str = config.TEMPLATE_ID,
+1057: ) -> list[FichaProcessingResult]:
+1058:     """
+1059:     Corre process_ficha() sobre una lista de fotos y escribe
+1060:     {output_root}/vision_manifest.json con el resultado de todas
+1061:     (Decisión 3.1 del equipo).
+1062: 
+1063:     P2 no construye la estructura completa de BATCH-001/ (eso es de
+1064:     P3/core_pipeline.py) — solo escribe dentro de output_root, que
+1065:     representa la carpeta work/ del lote.
+1066:     """
+1067:     output_root = Path(output_root)
+1068:     resultados = []
+1069: 
+1070:     for path in paths:
+1071:         resultado = process_ficha(path, template_id=template_id, output_root=output_root)
+1072:         resultados.append(resultado)
+1073: 
+1074:     manifest = [r.manifest_entry for r in resultados]
+1075: 
+1076:     output_root.mkdir(parents=True, exist_ok=True)
+1077:     manifest_path = output_root / "vision_manifest.json"
+1078: 
+1079:     with manifest_path.open("w", encoding="utf-8") as file:
+1080:         json.dump(manifest, file, indent=2, ensure_ascii=False)
+1081: 
+1082:     return resultados
+1083: 
+1084: 
+1085: 
+1086: # ---------------------------------------------------------------------------
+1087: # Utilidades de depuración visual (equivalente en espíritu a validar_centros.py)
+1088: # ---------------------------------------------------------------------------
+1089: 
+1090: def draw_detection_debug(image: np.ndarray, result: MarkerDetectionResult) -> np.ndarray:
+1091:     """
+1092:     Dibuja los candidatos y el resultado sobre una copia de la imagen,
+1093:     para inspección visual manual durante el desarrollo.
+1094:     """
+1095:     debug_image = image.copy()
+1096: 
+1097:     for candidate in result.candidates:
+1098:         color = (0, 255, 255) if candidate.has_inner_hole else (255, 180, 0)
+1099:         cv2.drawContours(debug_image, [candidate.contour], -1, color, 3)
+1100:         cx, cy = int(candidate.center[0]), int(candidate.center[1])
+1101:         cv2.circle(debug_image, (cx, cy), 6, (0, 0, 255), -1)
+1102: 
+1103:     if result.ordered_points:
+1104:         for name, point in result.ordered_points.items():
+1105:             cv2.putText(
+1106:                 debug_image,
+1107:                 name,
+1108:                 (int(point[0]) + 10, int(point[1]) - 10),
+1109:                 cv2.FONT_HERSHEY_SIMPLEX,
+1110:                 0.7,
+1111:                 (0, 0, 255),
+1112:                 2,
+1113:                 cv2.LINE_AA,
+1114:             )
+1115: 
+1116:     cv2.putText(
+1117:         debug_image,
+1118:         f"status={result.status}",
+1119:         (30, 40),
+1120:         cv2.FONT_HERSHEY_SIMPLEX,
+1121:         1.0,
+1122:         (0, 0, 255),
+1123:         2,
+1124:         cv2.LINE_AA,
+1125:     )
+1126: 
+1127:     return debug_image
+1128: 
+1129: 
+1130: def draw_canonical_debug(canonical_image: np.ndarray, marker_centers: dict[str, list[int]]) -> np.ndarray:
+1131:     """
+1132:     Dibuja los marcadores oficiales sobre la imagen canónica resultante,
+1133:     para verificar visualmente que el warp dejó cada marcador exactamente
+1134:     donde marcadores_centros.json dice que debería estar.
+1135:     """
+1136:     debug_image = canonical_image.copy()
+1137: 
+1138:     for name, (cx, cy) in marker_centers.items():
+1139:         cv2.circle(debug_image, (int(cx), int(cy)), 8, (0, 0, 255), 2)
+1140:         cv2.putText(
+1141:             debug_image,
+1142:             name,
+1143:             (int(cx) + 12, int(cy) - 12),
+1144:             cv2.FONT_HERSHEY_SIMPLEX,
+1145:             0.6,
+1146:             (0, 0, 255),
+1147:             2,
+1148:             cv2.LINE_AA,
+1149:         )
+1150: 
+1151:     return debug_image
+1152: 
+1153: 
+1154: def draw_marker_roi_debug(
+1155:     canonical_image: np.ndarray,
+1156:     marker_centers: dict[str, list[int]],
+1157:     marker_size_px: int = 100,
+1158: ) -> np.ndarray:
+1159:     """
+1160:     Genera un mosaico con la ROI de cada marcador (tal como la ve M4)
+1161:     junto a su máscara de píxeles oscuros y el % de oscuridad medido.
+1162:     Sirve para diagnosticar, esquina por esquina, por qué M4 pudo
+1163:     fallar en una foto real (sombra, blur localizado, iluminación
+1164:     desigual, etc.) en vez de solo ver el "None" en el resultado.
+1165:     """
+1166:     gray = cv2.cvtColor(canonical_image, cv2.COLOR_BGR2GRAY)
+1167:     half = marker_size_px // 2 + config.QUALITY_MARKER_ROI_MARGIN
+1168: 
+1169:     rows = []
+1170: 
+1171:     for name, (cx, cy) in marker_centers.items():
+1172:         x1 = max(0, int(cx - half))
+1173:         y1 = max(0, int(cy - half))
+1174:         x2 = min(gray.shape[1], int(cx + half))
+1175:         y2 = min(gray.shape[0], int(cy + half))
+1176: 
+1177:         roi = gray[y1:y2, x1:x2]
+1178: 
+1179:         if roi.size == 0:
+1180:             continue
+1181: 
+1182:         dark_mask = (roi < config.QUALITY_DARK_PIXEL_THRESHOLD).astype(np.uint8) * 255
+1183:         dark_ratio = float((roi < config.QUALITY_DARK_PIXEL_THRESHOLD).sum()) / roi.size
+1184: 
+1185:         roi_bgr = cv2.cvtColor(roi, cv2.COLOR_GRAY2BGR)
+1186:         mask_bgr = cv2.cvtColor(dark_mask, cv2.COLOR_GRAY2BGR)
+1187:         row = np.hstack([roi_bgr, mask_bgr])
+1188: 
+1189:         label = (
+1190:             f"{name}: {dark_ratio * 100:.1f}% oscuro "
+1191:             f"(umbral {config.QUALITY_MIN_MARKER_DARK_RATIO * 100:.0f}%)"
+1192:         )
+1193:         label_bar = np.full((22, row.shape[1], 3), 255, dtype=np.uint8)
+1194:         cv2.putText(
+1195:             label_bar, label, (5, 16), cv2.FONT_HERSHEY_SIMPLEX,
+1196:             0.45, (0, 0, 255), 1, cv2.LINE_AA,
+1197:         )
+1198: 
+1199:         rows.append(np.vstack([label_bar, row]))
+1200: 
+1201:     if not rows:
+1202:         return canonical_image.copy()
+1203: 
+1204:     max_width = max(row.shape[1] for row in rows)
+1205:     padded_rows = []
+1206: 
+1207:     for row in rows:
+1208:         if row.shape[1] < max_width:
+1209:             pad = np.full((row.shape[0], max_width - row.shape[1], 3), 255, dtype=np.uint8)
+1210:             row = np.hstack([row, pad])
+1211:         padded_rows.append(row)
+1212: 
+1213:     return np.vstack(padded_rows)
+1214: 
+1215: 
+1216: if __name__ == "__main__":
+1217:     import sys
+1218: 
+1219:     if len(sys.argv) != 2:
+1220:         print("Uso: python core_vision.py <ruta_a_foto_cruda.jpg>")
+1221:         sys.exit(1)
+1222: 
+1223:     input_path = sys.argv[1]
+1224:     raw_image = cv2.imread(input_path)
+1225: 
+1226:     if raw_image is None:
+1227:         print(f"No se pudo leer la imagen: {input_path}")
+1228:         sys.exit(1)
+1229: 
+1230:     detection_image, detection, rotation_applied = detect_and_autorotate(raw_image)
+1231: 
+1232:     print(f"status: {detection.status}")
+1233:     print(f"issue_code: {detection.issue_code}")
+1234:     print(f"message: {detection.message}")
+1235:     print(f"rotación aplicada: {rotation_applied}°")
+1236:     print(f"candidatos cuadrados detectados en total: {len(detection.candidates)}")
+1237: 
+1238:     if detection.ordered_points:
+1239:         print("ordered_points:")
+1240:         for name, point in detection.ordered_points.items():
+1241:             print(f"  {name}: {point}")
+1242: 
+1243:     debug_output = draw_detection_debug(detection_image, detection)
+1244:     output_path = "debug_marker_detection.png"
+1245:     cv2.imwrite(output_path, debug_output)
+1246:     print(f"Debug visual guardado en: {output_path}")
+1247: 
+1248:     if detection.status != "OK":
+1249:         print("\nNo se intenta el warp: los marcadores no están en condiciones OK.")
+1250:         sys.exit(0)
+1251: 
+1252:     template = template_loader.load_template()
+1253: 
+1254:     warp_result = correct_perspective(
+1255:         image=detection_image,
+1256:         detected_points=detection.ordered_points,
+1257:         marker_centers=template.marker_centers,
+1258:         canonical_width=template.canonical_width,
+1259:         canonical_height=template.canonical_height,
+1260:     )
+1261: 
+1262:     print("\n--- Warp ---")
+1263:     print(f"status: {warp_result.status}")
+1264:     print(f"issue_code: {warp_result.issue_code}")
+1265:     print(f"message: {warp_result.message}")
+1266: 
+1267:     if warp_result.status == "OK":
+1268:         canonical_path = "debug_canonical.png"
+1269:         cv2.imwrite(canonical_path, warp_result.canonical_image)
+1270:         print(f"Imagen canónica guardada en: {canonical_path}")
+1271: 
+1272:         canonical_debug = draw_canonical_debug(
+1273:             warp_result.canonical_image, template.marker_centers
+1274:         )
+1275:         canonical_debug_path = "debug_canonical_markers.png"
+1276:         cv2.imwrite(canonical_debug_path, canonical_debug)
+1277:         print(f"Debug de marcadores canónicos guardado en: {canonical_debug_path}")
+1278: 
+1279:         quality_result = validate_canonical_quality(
+1280:             canonical_image=warp_result.canonical_image,
+1281:             marker_centers=template.marker_centers,
+1282:         )
+1283: 
+1284:         print("\n--- Calidad (Anexo C) ---")
+1285:         print(f"status: {quality_result.status}")
+1286:         print(f"issue_code: {quality_result.issue_code}")
+1287:         print(f"message: {quality_result.message}")
+1288:         print(f"M1 nitidez: {quality_result.metrics.sharpness:.1f} "
+1289:               f"(passed={quality_result.metrics.sharpness_passed})")
+1290:         print(f"M2 brillo: {quality_result.metrics.brightness:.1f} "
+1291:               f"(passed={quality_result.metrics.brightness_passed})")
+1292:         print(f"M3 % zonas negras: {quality_result.metrics.dark_area_ratio * 100:.1f}% "
+1293:               f"(passed={quality_result.metrics.dark_area_passed})")
+1294:         print(f"M4 offsets de marcadores (px): {quality_result.metrics.marker_offsets_px} "
+1295:               f"(passed={quality_result.metrics.markers_passed})")
+1296: 
+1297:         roi_debug = draw_marker_roi_debug(
+1298:             warp_result.canonical_image, template.marker_centers
+1299:         )
+1300:         roi_debug_path = "debug_marker_rois.png"
+1301:         cv2.imwrite(roi_debug_path, roi_debug)
+1302:         print(f"Debug de ROIs de marcadores (M4) guardado en: {roi_debug_path}")
+</file>
+
+<file path="run_pruebas.py">
+  1: # app/run_pruebas.py
+  2: """
+  3: Corre las 3 fases de P2 (marcadores -> warp -> calidad) sobre todas las
+  4: fotos en pruebas/ y guarda el debug visual de cada una organizado en
+  5: su propia carpeta dentro de debug/, en vez de sobrescribir archivos
+  6: fijos en cada corrida.
+  7: 
+  8: Uso (desde app/):
+  9:     python run_pruebas.py
+ 10: 
+ 11: Estructura esperada:
+ 12:     app/
+ 13:       pruebas/
+ 14:         prueba1.jpg
+ 15:         prueba2.jpeg
+ 16:         prueba3.png
+ 17:         ...
+ 18:       debug/
+ 19:         prueba1/
+ 20:           01_marcadores.png
+ 21:           02_canonical.png
+ 22:           03_canonical_marcadores.png
+ 23:           04_marker_rois.png
+ 24:         prueba2/
+ 25:           ...
+ 26: """
+ 27: 
+ 28: import csv
+ 29: import re
+ 30: from pathlib import Path
+ 31: 
+ 32: import cv2
+ 33: 
+ 34: import config
+ 35: import template_loader
+ 36: from core_vision import (
+ 37:     correct_perspective,
+ 38:     detect_and_autorotate,
+ 39:     draw_canonical_debug,
+ 40:     draw_detection_debug,
+ 41:     draw_marker_roi_debug,
+ 42:     validate_canonical_quality,
+ 43: )
+ 44: 
+ 45: BASE_DIR = Path(__file__).resolve().parent
+ 46: PRUEBAS_DIR = BASE_DIR / "pruebas"
+ 47: DEBUG_DIR = BASE_DIR / "debug"
+ 48: 
+ 49: VALID_EXTENSIONS = {ext.lower() for ext in config.SUPPORTED_INPUT_FORMATS}
+ 50: 
+ 51: 
+ 52: def _extract_number(path: Path) -> int:
+ 53:     """Permite ordenar prueba2 antes que prueba10 (orden natural, no alfabético)."""
+ 54:     match = re.search(r"(\d+)", path.stem)
+ 55:     return int(match.group(1)) if match else 0
+ 56: 
+ 57: 
+ 58: def _find_pruebas() -> list[Path]:
+ 59:     if not PRUEBAS_DIR.exists():
+ 60:         raise FileNotFoundError(f"No existe la carpeta de pruebas: {PRUEBAS_DIR}")
+ 61: 
+ 62:     archivos = [
+ 63:         path for path in PRUEBAS_DIR.iterdir()
+ 64:         if path.is_file() and path.suffix.lower() in VALID_EXTENSIONS
+ 65:     ]
+ 66: 
+ 67:     return sorted(archivos, key=_extract_number)
+ 68: 
+ 69: 
+ 70: def procesar_prueba(path: Path, template) -> dict:
+ 71:     """
+ 72:     Corre las 3 fases sobre una foto y guarda su debug en
+ 73:     debug/<nombre_prueba>/. Retorna un resumen en dict para la tabla final.
+ 74:     """
+ 75:     output_dir = DEBUG_DIR / path.stem
+ 76:     output_dir.mkdir(parents=True, exist_ok=True)
+ 77: 
+ 78:     resumen = {
+ 79:         "prueba": path.stem,
+ 80:         "marcadores": None,
+ 81:         "rotacion_grados": 0,
+ 82:         "warp": None,
+ 83:         "calidad": None,
+ 84:         "detalle": "",
+ 85:     }
+ 86: 
+ 87:     raw_image = cv2.imread(str(path))
+ 88: 
+ 89:     if raw_image is None:
+ 90:         resumen["marcadores"] = "ERROR_LECTURA"
+ 91:         resumen["detalle"] = f"No se pudo leer el archivo: {path.name}"
+ 92:         return resumen
+ 93: 
+ 94:     # --- Fase 1: marcadores (con auto-rotación) ---
+ 95:     imagen_final, deteccion, grados_rotados = detect_and_autorotate(raw_image)
+ 96:     resumen["marcadores"] = deteccion.status
+ 97:     resumen["rotacion_grados"] = grados_rotados
+ 98: 
+ 99:     debug_marcadores = draw_detection_debug(imagen_final, deteccion)
+100:     cv2.imwrite(str(output_dir / "01_marcadores.png"), debug_marcadores)
+101: 
+102:     if deteccion.status != "OK":
+103:         resumen["detalle"] = deteccion.message
+104:         return resumen
+105: 
+106:     # --- Fase 2: warp ---
+107:     warp = correct_perspective(
+108:         image=imagen_final,
+109:         detected_points=deteccion.ordered_points,
+110:         marker_centers=template.marker_centers,
+111:         canonical_width=template.canonical_width,
+112:         canonical_height=template.canonical_height,
+113:     )
+114:     resumen["warp"] = warp.status
+115: 
+116:     if warp.status != "OK":
+117:         resumen["detalle"] = warp.message
+118:         return resumen
+119: 
+120:     cv2.imwrite(str(output_dir / "02_canonical.png"), warp.canonical_image)
+121: 
+122:     debug_canonico = draw_canonical_debug(warp.canonical_image, template.marker_centers)
+123:     cv2.imwrite(str(output_dir / "03_canonical_marcadores.png"), debug_canonico)
+124: 
+125:     # --- Fase 3: calidad ---
+126:     calidad = validate_canonical_quality(
+127:         canonical_image=warp.canonical_image,
+128:         marker_centers=template.marker_centers,
+129:     )
+130:     resumen["calidad"] = calidad.status
+131: 
+132:     if calidad.status != "OK":
+133:         resumen["detalle"] = calidad.message
+134: 
+135:     debug_rois = draw_marker_roi_debug(warp.canonical_image, template.marker_centers)
+136:     cv2.imwrite(str(output_dir / "04_marker_rois.png"), debug_rois)
+137: 
+138:     return resumen
+139: 
+140: 
+141: def imprimir_resumen(resultados: list[dict]) -> None:
+142:     encabezado = f"{'prueba':<12}{'marcadores':<20}{'rot°':<6}{'warp':<15}{'calidad':<15}detalle"
+143:     print(encabezado)
+144:     print("-" * len(encabezado))
+145: 
+146:     for r in resultados:
+147:         print(
+148:             f"{r['prueba']:<12}"
+149:             f"{str(r['marcadores']):<20}"
+150:             f"{str(r['rotacion_grados']):<6}"
+151:             f"{str(r['warp']):<15}"
+152:             f"{str(r['calidad']):<15}"
+153:             f"{r['detalle']}"
+154:         )
+155: 
+156: 
+157: def guardar_resumen_csv(resultados: list[dict]) -> None:
+158:     csv_path = DEBUG_DIR / "resumen.csv"
+159:     DEBUG_DIR.mkdir(parents=True, exist_ok=True)
+160: 
+161:     with csv_path.open("w", newline="", encoding="utf-8") as file:
+162:         writer = csv.DictWriter(
+163:             file,
+164:             fieldnames=["prueba", "marcadores", "rotacion_grados", "warp", "calidad", "detalle"],
+165:         )
+166:         writer.writeheader()
+167:         writer.writerows(resultados)
+168: 
+169:     print(f"\nResumen guardado en: {csv_path}")
+170: 
+171: 
+172: def main() -> None:
+173:     pruebas = _find_pruebas()
+174: 
+175:     if not pruebas:
+176:         print(f"No se encontraron imágenes válidas en {PRUEBAS_DIR}")
+177:         return
+178: 
+179:     template = template_loader.load_template()
+180: 
+181:     resultados = [procesar_prueba(path, template) for path in pruebas]
+182: 
+183:     print()
+184:     imprimir_resumen(resultados)
+185:     guardar_resumen_csv(resultados)
+186: 
+187: 
+188: if __name__ == "__main__":
+189:     main()
+</file>
+
+<file path="template_loader.py">
+  1: # app/template_loader.py
+  2: 
+  3: import json
+  4: from dataclasses import dataclass
+  5: from pathlib import Path
+  6: from typing import Any
+  7: 
+  8: 
+  9: @dataclass(frozen=True)
+ 10: class TemplateContract:
+ 11:     """
+ 12:     Contrato cargado de una plantilla ScanExam.
+ 13: 
+ 14:     Este objeto concentra:
+ 15:     - configuración general de la plantilla
+ 16:     - centros de respuestas
+ 17:     - centros de identificación
+ 18:     - centros de marcadores
+ 19:     - rutas absolutas a archivos de referencia
+ 20:     """
+ 21: 
+ 22:     template_id: str
+ 23:     template_dir: Path
+ 24: 
+ 25:     config: dict[str, Any]
+ 26:     answers_centers: dict[str, list[int]]
+ 27:     student_id_centers: dict[str, list[int]]
+ 28:     marker_centers: dict[str, list[int]]
+ 29: 
+ 30:     template_pdf_path: Path | None
+ 31:     template_image_path: Path | None
+ 32: 
+ 33:     canonical_width: int
+ 34:     canonical_height: int
+ 35:     bubble_diameter_px: int
+ 36:     crop_size_px: int
+ 37:     analysis_inner_radius_px: int
+ 38: 
+ 39: 
+ 40: def find_project_root() -> Path:
+ 41:     """
+ 42:     Busca la raíz del proyecto subiendo carpetas hasta encontrar
+ 43:     README.md y requirements.txt.
+ 44:     """
+ 45:     current = Path(__file__).resolve()
+ 46: 
+ 47:     for parent in current.parents:
+ 48:         if (parent / "README.md").exists() and (parent / "requirements.txt").exists():
+ 49:             return parent
+ 50: 
+ 51:     raise RuntimeError(
+ 52:         "No se pudo encontrar la raíz del proyecto. "
+ 53:         "Verifica que README.md y requirements.txt existan en la raíz."
+ 54:     )
+ 55: 
+ 56: 
+ 57: def load_json(path: Path) -> dict[str, Any]:
+ 58:     if not path.exists():
+ 59:         raise FileNotFoundError(f"No se encontró el archivo requerido: {path}")
+ 60: 
+ 61:     with path.open("r", encoding="utf-8") as file:
+ 62:         return json.load(file)
+ 63: 
+ 64: 
+ 65: def resolve_template_file(template_dir: Path, relative_path: str) -> Path:
+ 66:     """
+ 67:     Resuelve rutas relativas tomando como base la carpeta de la plantilla.
+ 68:     """
+ 69:     return template_dir / relative_path
+ 70: 
+ 71: 
+ 72: def normalize_marker_centers(markers_data: dict[str, Any]) -> dict[str, list[int]]:
+ 73:     """
+ 74:     Soporta dos formatos para marcadores.
+ 75: 
+ 76:     Formato recomendado:
+ 77:     {
+ 78:         "marker_size_px": 100,
+ 79:         "coordinate_type": "center",
+ 80:         "markers": {
+ 81:             "top_left": [180, 180],
+ 82:             "top_right": [1920, 180],
+ 83:             ...
+ 84:         },
+ 85:         "orientation_marker": "top_right"
+ 86:     }
+ 87: 
+ 88:     Formato simple:
+ 89:     {
+ 90:         "top_left": [180, 180],
+ 91:         "top_right": [1920, 180],
+ 92:         ...
+ 93:     }
+ 94:     """
+ 95:     if "markers" in markers_data:
+ 96:         return markers_data["markers"]
+ 97: 
+ 98:     return {
+ 99:         key: value
+100:         for key, value in markers_data.items()
+101:         if isinstance(value, list) and len(value) == 2
+102:     }
+103: 
+104: 
+105: def validate_center_dict(name: str, centers: dict[str, Any]) -> None:
+106:     """
+107:     Valida que todos los centros tengan formato [x, y].
+108:     """
+109:     for item_id, center in centers.items():
+110:         if not isinstance(center, list) or len(center) != 2:
+111:             raise ValueError(
+112:                 f"{name}: '{item_id}' debe tener formato [x, y]. Valor recibido: {center}"
+113:             )
+114: 
+115:         x, y = center
+116: 
+117:         if not isinstance(x, int) or not isinstance(y, int):
+118:             raise ValueError(
+119:                 f"{name}: '{item_id}' debe usar coordenadas enteras. Valor recibido: {center}"
+120:             )
+121: 
+122: 
+123: def load_template(
+124:     template_id: str = "ficha_optica_a5_horizontal_v1",
+125:     project_root: Path | None = None,
+126: ) -> TemplateContract:
+127:     """
+128:     Carga la plantilla oficial de ScanExam.
+129: 
+130:     Uso esperado:
+131:         template = load_template("ficha_optica_a5_horizontal_v1")
+132: 
+133:     Devuelve:
+134:         - config
+135:         - answers_centers
+136:         - student_id_centers
+137:         - marker_centers
+138:         - rutas absolutas a PDF/PNG
+139:         - parámetros útiles de tamaño y burbuja
+140:     """
+141:     if project_root is None:
+142:         project_root = find_project_root()
+143: 
+144:     template_dir = project_root / "data" / "plantilla" / template_id
+145:     config_path = template_dir / "template_config.json"
+146: 
+147:     config = load_json(config_path)
+148: 
+149:     if config["template_id"] != template_id:
+150:         raise ValueError(
+151:             f"El template_id solicitado es '{template_id}', "
+152:             f"pero el config declara '{config['template_id']}'."
+153:         )
+154: 
+155:     answers_path = resolve_template_file(
+156:         template_dir,
+157:         config["answers"]["centers_file"]
+158:     )
+159: 
+160:     student_id_path = resolve_template_file(
+161:         template_dir,
+162:         config["student_id"]["centers_file"]
+163:     )
+164: 
+165:     markers_path = resolve_template_file(
+166:         template_dir,
+167:         config["perspective"]["markers_file"]
+168:     )
+169: 
+170:     answers_centers = load_json(answers_path)
+171:     student_id_centers = load_json(student_id_path)
+172:     markers_data = load_json(markers_path)
+173:     marker_centers = normalize_marker_centers(markers_data)
+174: 
+175:     validate_center_dict("answers_centers", answers_centers)
+176:     validate_center_dict("student_id_centers", student_id_centers)
+177:     validate_center_dict("marker_centers", marker_centers)
+178: 
+179:     reference_files = config.get("reference_files", {})
+180: 
+181:     template_pdf_path = None
+182:     if "template_pdf" in reference_files:
+183:         template_pdf_path = resolve_template_file(
+184:             template_dir,
+185:             reference_files["template_pdf"]
+186:         )
+187: 
+188:     template_image_path = None
+189:     if "template_image" in reference_files:
+190:         template_image_path = resolve_template_file(
+191:             template_dir,
+192:             reference_files["template_image"]
+193:         )
+194: 
+195:     canonical_width = config["canonical_size"]["width_px"]
+196:     canonical_height = config["canonical_size"]["height_px"]
+197: 
+198:     bubble_diameter_px = config["bubble"]["diameter_px"]
+199:     crop_size_px = config["bubble"]["crop_size_px"]
+200:     analysis_inner_radius_px = config["bubble"]["analysis_inner_radius_px"]
+201: 
+202:     return TemplateContract(
+203:         template_id=template_id,
+204:         template_dir=template_dir,
+205:         config=config,
+206:         answers_centers=answers_centers,
+207:         student_id_centers=student_id_centers,
+208:         marker_centers=marker_centers,
+209:         template_pdf_path=template_pdf_path,
+210:         template_image_path=template_image_path,
+211:         canonical_width=canonical_width,
+212:         canonical_height=canonical_height,
+213:         bubble_diameter_px=bubble_diameter_px,
+214:         crop_size_px=crop_size_px,
+215:         analysis_inner_radius_px=analysis_inner_radius_px,
+216:     )
+217: 
+218: 
+219: if __name__ == "__main__":
+220:     template = load_template()
+221: 
+222:     print("Plantilla cargada correctamente:")
+223:     print(f"- Template ID: {template.template_id}")
+224:     print(f"- Carpeta: {template.template_dir}")
+225:     print(f"- Tamaño canónico: {template.canonical_width}x{template.canonical_height}")
+226:     print(f"- Respuestas: {len(template.answers_centers)} centros")
+227:     print(f"- Identificación: {len(template.student_id_centers)} centros")
+228:     print(f"- Marcadores: {len(template.marker_centers)} centros")
+229:     print(f"- Crop size: {template.crop_size_px}px")
+</file>
+
+<file path="test_core_vision.py">
+  1: # app/test_core_vision.py
+  2: """
+  3: Pruebas automatizadas para core_vision.py (P2).
+  4: 
+  5: Cubre las 3 fases con:
+  6:   - Casos sintéticos deterministas (no dependen de fotos externas,
+  7:     siempre corren, sirven como red de seguridad ante regresiones).
+  8:   - Casos con fotos reales "doradas" en pruebas/ (se saltan
+  9:     automáticamente si esas fotos no están presentes en la máquina que
+ 10:     corre las pruebas, ya que no forman parte del repo).
+ 11: 
+ 12: Ejecutar desde app/:
+ 13:     pytest test_core_vision.py -v
+ 14: """
+ 15: 
+ 16: import json
+ 17: from pathlib import Path
+ 18: 
+ 19: import cv2
+ 20: import numpy as np
+ 21: import pytest
+ 22: 
+ 23: import template_loader
+ 24: from core_vision import (
+ 25:     FichaProcessingResult,
+ 26:     correct_perspective,
+ 27:     detect_and_autorotate,
+ 28:     detect_reference_markers,
+ 29:     extraer_recorte,
+ 30:     process_batch,
+ 31:     process_ficha,
+ 32:     validate_canonical_quality,
+ 33: )
+ 34: 
+ 35: BASE_DIR = Path(__file__).resolve().parent
+ 36: PRUEBAS_DIR = BASE_DIR / "pruebas"
+ 37: 
+ 38: 
+ 39: # ---------------------------------------------------------------------------
+ 40: # Fixtures compartidas
+ 41: # ---------------------------------------------------------------------------
+ 42: 
+ 43: @pytest.fixture(scope="session")
+ 44: def template():
+ 45:     return template_loader.load_template()
+ 46: 
+ 47: 
+ 48: @pytest.fixture(scope="session")
+ 49: def plantilla_referencia(template):
+ 50:     """La imagen de referencia perfecta (2100x1480), tal como la genera Figma."""
+ 51:     image = cv2.imread(str(template.template_image_path))
+ 52:     assert image is not None, (
+ 53:         f"No se pudo cargar la imagen de referencia: {template.template_image_path}"
+ 54:     )
+ 55:     return image
+ 56: 
+ 57: 
+ 58: def _build_synthetic_photo(
+ 59:     plantilla_referencia: np.ndarray,
+ 60:     dst_corners: list[list[int]],
+ 61:     brightness_factor: float = 1.0,
+ 62:     canvas_size: tuple[int, int] = (3000, 2400),
+ 63: ) -> np.ndarray:
+ 64:     """
+ 65:     Simula una "foto" aplicando una perspectiva conocida sobre la
+ 66:     plantilla de referencia perfecta, opcionalmente oscurecida para
+ 67:     imitar la exposición real de una cámara (la plantilla digital pura
+ 68:     es más blanca que cualquier foto real).
+ 69:     """
+ 70:     h, w = plantilla_referencia.shape[:2]
+ 71:     canvas_w, canvas_h = canvas_size
+ 72: 
+ 73:     src_corners = np.array([[0, 0], [w, 0], [w, h], [0, h]], dtype=np.float32)
+ 74:     dst = np.array(dst_corners, dtype=np.float32)
+ 75: 
+ 76:     homography = cv2.getPerspectiveTransform(src_corners, dst)
+ 77: 
+ 78:     source = plantilla_referencia
+ 79: 
+ 80:     if brightness_factor != 1.0:
+ 81:         source = np.clip(
+ 82:             plantilla_referencia.astype(np.float32) * brightness_factor, 0, 255
+ 83:         ).astype(np.uint8)
+ 84: 
+ 85:     return cv2.warpPerspective(
+ 86:         source, homography, (canvas_w, canvas_h), borderValue=(180, 180, 180)
+ 87:     )
+ 88: 
+ 89: 
+ 90: @pytest.fixture
+ 91: def foto_sintetica_buena(plantilla_referencia):
+ 92:     """
+ 93:     Foto simulada con perspectiva (esquinas movidas, no un rectángulo
+ 94:     perfecto) y brillo ajustado a un rango realista de cámara. Debe
+ 95:     pasar las 3 fases sin problema.
+ 96:     """
+ 97:     return _build_synthetic_photo(
+ 98:         plantilla_referencia,
+ 99:         dst_corners=[[350, 300], [2700, 150], [2600, 2100], [300, 2000]],
+100:         brightness_factor=0.75,
+101:     )
+102: 
+103: 
+104: @pytest.fixture
+105: def foto_sintetica_rotada_180(plantilla_referencia):
+106:     photo = _build_synthetic_photo(
+107:         plantilla_referencia,
+108:         dst_corners=[[350, 300], [2700, 150], [2600, 2100], [300, 2000]],
+109:         brightness_factor=0.75,
+110:     )
+111:     return cv2.rotate(photo, cv2.ROTATE_180)
+112: 
+113: 
+114: @pytest.fixture
+115: def foto_sintetica_rotada_90(plantilla_referencia):
+116:     photo = _build_synthetic_photo(
+117:         plantilla_referencia,
+118:         dst_corners=[[350, 300], [2700, 150], [2600, 2100], [300, 2000]],
+119:         brightness_factor=0.75,
+120:     )
+121:     return cv2.rotate(photo, cv2.ROTATE_90_CLOCKWISE)
+122: 
+123: 
+124: @pytest.fixture
+125: def foto_sintetica_rotada_270(plantilla_referencia):
+126:     photo = _build_synthetic_photo(
+127:         plantilla_referencia,
+128:         dst_corners=[[350, 300], [2700, 150], [2600, 2100], [300, 2000]],
+129:         brightness_factor=0.75,
+130:     )
+131:     return cv2.rotate(photo, cv2.ROTATE_90_COUNTERCLOCKWISE)
+132: 
+133: 
+134: def _skip_si_no_existe(nombre: str) -> Path:
+135:     candidatos = list(PRUEBAS_DIR.glob(f"{nombre}.*"))
+136: 
+137:     if not candidatos:
+138:         pytest.skip(
+139:             f"'{nombre}' no está presente en {PRUEBAS_DIR} en esta máquina "
+140:             "(las fotos de prueba reales no forman parte del repo)."
+141:         )
+142: 
+143:     return candidatos[0]
+144: 
+145: 
+146: # ---------------------------------------------------------------------------
+147: # Fase 1: detección de marcadores (sintético, siempre corre)
+148: # ---------------------------------------------------------------------------
+149: 
+150: class TestDeteccionMarcadores:
+151: 
+152:     def test_foto_buena_da_ok(self, foto_sintetica_buena):
+153:         resultado = detect_reference_markers(foto_sintetica_buena)
+154:         assert resultado.status == "OK"
+155:         assert resultado.ordered_points is not None
+156:         assert set(resultado.ordered_points) == {
+157:             "top_left", "top_right", "bottom_left", "bottom_right"
+158:         }
+159: 
+160:     def test_foto_rotada_180_sin_autorotacion_da_invalid_orientation(
+161:         self, foto_sintetica_rotada_180
+162:     ):
+163:         """
+164:         detect_reference_markers() por sí solo (sin pasar por
+165:         detect_and_autorotate) sigue rechazando la orientación
+166:         incorrecta -- la auto-corrección es una capa aparte, no un
+167:         cambio en la detección de base.
+168:         """
+169:         resultado = detect_reference_markers(foto_sintetica_rotada_180)
+170:         assert resultado.status == "INVALID_ORIENTATION"
+171:         assert resultado.issue_code is not None
+172: 
+173:     def test_marcador_tapado_da_markers_not_found(self, plantilla_referencia):
+174:         imagen = plantilla_referencia.copy()
+175:         # Tapa el marcador top_left (esquina superior izquierda real)
+176:         cv2.rectangle(imagen, (130, 130), (230, 230), (255, 255, 255), -1)
+177: 
+178:         resultado = detect_reference_markers(imagen)
+179:         assert resultado.status == "MARKERS_NOT_FOUND"
+180: 
+181:     def test_imagen_vacia_da_markers_not_found(self):
+182:         resultado = detect_reference_markers(np.zeros((0, 0, 3), dtype=np.uint8))
+183:         assert resultado.status == "MARKERS_NOT_FOUND"
+184: 
+185: 
+186: class TestAutorotacion:
+187:     """Decisión 1 del equipo: auto-corrección de orientación 90/180/270."""
+188: 
+189:     @pytest.mark.parametrize(
+190:         "fixture_name,grados_esperados",
+191:         [
+192:             ("foto_sintetica_rotada_90", 270),
+193:             ("foto_sintetica_rotada_180", 180),
+194:             ("foto_sintetica_rotada_270", 90),
+195:         ],
+196:     )
+197:     def test_autorotacion_resuelve_las_3_rotaciones(
+198:         self, fixture_name, grados_esperados, request
+199:     ):
+200:         foto_rotada = request.getfixturevalue(fixture_name)
+201: 
+202:         imagen_final, resultado, grados_aplicados = detect_and_autorotate(foto_rotada)
+203: 
+204:         assert resultado.status == "OK"
+205:         assert grados_aplicados == grados_esperados
+206:         # La imagen final debe quedar con el ancho > alto (landscape),
+207:         # tal como exige el contrato de salida canónica.
+208:         assert imagen_final.shape[1] > imagen_final.shape[0]
+209: 
+210:     def test_foto_ya_correcta_no_rota(self, foto_sintetica_buena):
+211:         imagen_final, resultado, grados_aplicados = detect_and_autorotate(
+212:             foto_sintetica_buena
+213:         )
+214:         assert resultado.status == "OK"
+215:         assert grados_aplicados == 0
+216:         assert imagen_final is foto_sintetica_buena
+217: 
+218:     def test_marcador_tapado_no_se_resuelve_con_ninguna_rotacion(
+219:         self, plantilla_referencia
+220:     ):
+221:         imagen = plantilla_referencia.copy()
+222:         cv2.rectangle(imagen, (130, 130), (230, 230), (255, 255, 255), -1)
+223: 
+224:         _, resultado, grados_aplicados = detect_and_autorotate(imagen)
+225: 
+226:         assert resultado.status == "MARKERS_NOT_FOUND"
+227:         assert grados_aplicados == 0
+228: 
+229: 
+230: # ---------------------------------------------------------------------------
+231: # Fase 2: corrección de perspectiva / warp (sintético, siempre corre)
+232: # ---------------------------------------------------------------------------
+233: 
+234: class TestWarp:
+235: 
+236:     def test_warp_end_to_end_produce_imagen_canonica_correcta(
+237:         self, foto_sintetica_buena, template
+238:     ):
+239:         deteccion = detect_reference_markers(foto_sintetica_buena)
+240:         assert deteccion.status == "OK"
+241: 
+242:         resultado = correct_perspective(
+243:             image=foto_sintetica_buena,
+244:             detected_points=deteccion.ordered_points,
+245:             marker_centers=template.marker_centers,
+246:             canonical_width=template.canonical_width,
+247:             canonical_height=template.canonical_height,
+248:         )
+249: 
+250:         assert resultado.status == "OK"
+251:         assert resultado.canonical_image.shape[1] == template.canonical_width
+252:         assert resultado.canonical_image.shape[0] == template.canonical_height
+253: 
+254:     def test_puntos_colineales_da_warp_failed(self, template, plantilla_referencia):
+255:         puntos_colineales = {
+256:             "top_left": (100.0, 100.0),
+257:             "top_right": (200.0, 100.0),
+258:             "bottom_left": (150.0, 100.0),
+259:             "bottom_right": (300.0, 100.0),
+260:         }
+261: 
+262:         resultado = correct_perspective(
+263:             image=plantilla_referencia,
+264:             detected_points=puntos_colineales,
+265:             marker_centers=template.marker_centers,
+266:             canonical_width=template.canonical_width,
+267:             canonical_height=template.canonical_height,
+268:         )
+269: 
+270:         assert resultado.status == "WARP_FAILED"
+271: 
+272:     def test_puntos_incompletos_da_warp_failed(self, template, plantilla_referencia):
+273:         puntos_incompletos = {
+274:             "top_left": (100.0, 100.0),
+275:             "top_right": (200.0, 100.0),
+276:         }
+277: 
+278:         resultado = correct_perspective(
+279:             image=plantilla_referencia,
+280:             detected_points=puntos_incompletos,
+281:             marker_centers=template.marker_centers,
+282:             canonical_width=template.canonical_width,
+283:             canonical_height=template.canonical_height,
+284:         )
+285: 
+286:         assert resultado.status == "WARP_FAILED"
+287: 
+288: 
+289: # ---------------------------------------------------------------------------
+290: # Fase 3: validación de calidad M1-M4 (sintético, siempre corre)
+291: # ---------------------------------------------------------------------------
+292: 
+293: @pytest.fixture
+294: def imagen_canonica_buena(foto_sintetica_buena, template):
+295:     deteccion = detect_reference_markers(foto_sintetica_buena)
+296:     warp = correct_perspective(
+297:         image=foto_sintetica_buena,
+298:         detected_points=deteccion.ordered_points,
+299:         marker_centers=template.marker_centers,
+300:         canonical_width=template.canonical_width,
+301:         canonical_height=template.canonical_height,
+302:     )
+303:     assert warp.status == "OK"
+304:     return warp.canonical_image
+305: 
+306: 
+307: class TestCalidad:
+308: 
+309:     def test_imagen_buena_pasa_las_4_metricas(self, imagen_canonica_buena, template):
+310:         resultado = validate_canonical_quality(
+311:             imagen_canonica_buena, template.marker_centers
+312:         )
+313:         assert resultado.status == "OK", resultado.message
+314: 
+315:     def test_blur_fuerte_falla_por_m1(self, imagen_canonica_buena, template):
+316:         borrosa = cv2.GaussianBlur(imagen_canonica_buena, (25, 25), 15)
+317: 
+318:         resultado = validate_canonical_quality(borrosa, template.marker_centers)
+319: 
+320:         assert resultado.status == "LOW_CONFIDENCE"
+321:         assert not resultado.metrics.sharpness_passed
+322: 
+323:     def test_imagen_muy_oscura_falla_por_m2(self, imagen_canonica_buena, template):
+324:         oscura = (imagen_canonica_buena.astype(np.float32) * 0.25).astype(np.uint8)
+325: 
+326:         resultado = validate_canonical_quality(oscura, template.marker_centers)
+327: 
+328:         assert resultado.status == "LOW_CONFIDENCE"
+329:         assert not resultado.metrics.brightness_passed
+330: 
+331:     def test_marcador_perdido_falla_por_m4(self, imagen_canonica_buena, template):
+332:         sin_marcador = imagen_canonica_buena.copy()
+333:         # Blanquea la zona del marcador top_left en la imagen ya canónica
+334:         cv2.rectangle(sin_marcador, (130, 130), (230, 230), (255, 255, 255), -1)
+335: 
+336:         resultado = validate_canonical_quality(sin_marcador, template.marker_centers)
+337: 
+338:         assert resultado.status == "LOW_CONFIDENCE"
+339:         assert not resultado.metrics.markers_passed
+340:         assert resultado.metrics.marker_offsets_px["top_left"] is None
+341: 
+342: 
+343: # ---------------------------------------------------------------------------
+344: # Casos "dorados" con fotos reales (se saltan si la foto no está presente)
+345: # ---------------------------------------------------------------------------
+346: 
+347: class TestProcessFicha:
+348:     """process_ficha() es el contrato público único hacia core_pipeline.py/P3."""
+349: 
+350:     def test_foto_buena_da_ok_con_imagen_canonica(self, foto_sintetica_buena, template):
+351:         resultado = process_ficha(foto_sintetica_buena)
+352: 
+353:         assert isinstance(resultado, FichaProcessingResult)
+354:         assert resultado.status == "OK"
+355:         assert resultado.issue_code is None
+356:         assert resultado.canonical_image is not None
+357:         assert resultado.canonical_image.shape[1] == template.canonical_width
+358:         assert resultado.canonical_image.shape[0] == template.canonical_height
+359: 
+360:     def test_foto_rotada_se_autocorrige_a_ok(self, foto_sintetica_rotada_180):
+361:         """Decisión 1: process_ficha() debe autocorregir, no rechazar."""
+362:         resultado = process_ficha(foto_sintetica_rotada_180)
+363: 
+364:         assert resultado.status == "OK"
+365:         assert resultado.issue_code is None
+366:         assert resultado.canonical_image is not None
+367:         assert resultado.debug["rotacion_aplicada_grados"] == 180
+368: 
+369:     def test_ruta_inexistente_da_error_corrupt_file(self):
+370:         resultado = process_ficha("no_existe_este_archivo.jpg")
+371: 
+372:         assert resultado.status == "ERROR"
+373:         assert resultado.issue_code == "CORRUPT_FILE"
+374: 
+375:     def test_acepta_tanto_ruta_como_imagen_ya_cargada(
+376:         self, foto_sintetica_buena, tmp_path
+377:     ):
+378:         ruta_temp = tmp_path / "foto_temp.png"
+379:         cv2.imwrite(str(ruta_temp), foto_sintetica_buena)
+380: 
+381:         resultado_desde_ruta = process_ficha(ruta_temp)
+382:         resultado_desde_imagen = process_ficha(foto_sintetica_buena)
+383: 
+384:         assert resultado_desde_ruta.status == resultado_desde_imagen.status == "OK"
+385: 
+386: 
+387: class TestSalidaEnDisco:
+388:     """Decisiones 2 y 3 del equipo: PNG normalizado + carpeta work/ vía output_root."""
+389: 
+390:     def test_guarda_png_en_normalized_dentro_de_output_root(
+391:         self, foto_sintetica_buena, tmp_path
+392:     ):
+393:         ruta_original = tmp_path / "ficha_001.jpg"
+394:         cv2.imwrite(str(ruta_original), foto_sintetica_buena)
+395: 
+396:         output_root = tmp_path / "work"
+397: 
+398:         resultado = process_ficha(ruta_original, output_root=output_root)
+399: 
+400:         assert resultado.status == "OK"
+401:         assert resultado.canonical_path is not None
+402:         assert resultado.canonical_path.exists()
+403:         assert resultado.canonical_path.suffix == ".png"
+404:         assert resultado.canonical_path.parent.name == "normalized"
+405: 
+406:         # El PNG guardado debe poder releerse y tener el tamaño canónico.
+407:         releida = cv2.imread(str(resultado.canonical_path))
+408:         assert releida is not None
+409:         assert releida.shape[1] == 2100
+410:         assert releida.shape[0] == 1480
+411: 
+412:     def test_sin_output_root_no_escribe_nada_a_disco(self, foto_sintetica_buena):
+413:         resultado = process_ficha(foto_sintetica_buena)
+414: 
+415:         assert resultado.status == "OK"
+416:         assert resultado.canonical_path is None
+417: 
+418:     def test_manifest_entry_ok_tiene_canonical_path_y_sin_metricas(
+419:         self, foto_sintetica_buena, tmp_path
+420:     ):
+421:         ruta_original = tmp_path / "ficha_002.jpg"
+422:         cv2.imwrite(str(ruta_original), foto_sintetica_buena)
+423:         output_root = tmp_path / "work"
+424: 
+425:         resultado = process_ficha(ruta_original, output_root=output_root)
+426: 
+427:         assert resultado.manifest_entry["file"] == "ficha_002.jpg"
+428:         assert resultado.manifest_entry["status"] == "OK"
+429:         assert resultado.manifest_entry["issue_code"] is None
+430:         assert resultado.manifest_entry["quality_metrics"] is None
+431:         assert resultado.manifest_entry["canonical_path"] == "work/normalized/ficha_002.png"
+432: 
+433:     def test_manifest_entry_error_no_tiene_canonical_path(self):
+434:         """Fuerza un ERROR de lectura para confirmar el formato de manifest_entry."""
+435:         resultado = process_ficha(
+436:             np.zeros((0, 0, 3), dtype=np.uint8), original_filename="ficha_bad.jpg"
+437:         )
+438: 
+439:         assert resultado.manifest_entry["file"] == "ficha_bad.jpg"
+440:         assert resultado.manifest_entry["status"] == "ERROR"
+441:         assert resultado.manifest_entry["canonical_path"] is None
+442:         assert resultado.manifest_entry["issue_code"] == "CORRUPT_FILE"
+443: 
+444:     def test_manifest_entry_low_confidence_incluye_quality_metrics(
+445:         self, imagen_canonica_buena, tmp_path
+446:     ):
+447:         """
+448:         Usa una imagen ya canónica pero degradada (blur) para forzar
+449:         LOW_CONFIDENCE pasando directo la imagen (sin marcadores que
+450:         detectar de nuevo) -- se simula construyendo el resultado de
+451:         calidad directamente para validar el formato exacto exigido
+452:         por la Decisión 3.1 (blur_score/brightness/black_ratio).
+453:         """
+454:         borrosa = cv2.GaussianBlur(imagen_canonica_buena, (25, 25), 15)
+455:         calidad = validate_canonical_quality(borrosa, template_loader.load_template().marker_centers)
+456: 
+457:         assert calidad.status == "LOW_CONFIDENCE"
+458: 
+459:         # Verifica que process_ficha() arma el mismo formato de métricas
+460:         # que exige el manifest cuando la falla es por calidad.
+461:         from core_vision import _build_manifest_entry
+462: 
+463:         entry = _build_manifest_entry(
+464:             "ficha_003.jpg",
+465:             "ERROR",
+466:             None,
+467:             "LOW_CONFIDENCE",
+468:             {
+469:                 "blur_score": calidad.metrics.sharpness,
+470:                 "brightness": calidad.metrics.brightness,
+471:                 "black_ratio": calidad.metrics.dark_area_ratio,
+472:             },
+473:         )
+474: 
+475:         assert set(entry["quality_metrics"].keys()) == {
+476:             "blur_score", "brightness", "black_ratio"
+477:         }
+478: 
+479:     def test_process_batch_escribe_vision_manifest_json(
+480:         self, foto_sintetica_buena, foto_sintetica_rotada_180, tmp_path
+481:     ):
+482:         ruta1 = tmp_path / "ficha_001.jpg"
+483:         ruta2 = tmp_path / "ficha_002.jpg"
+484:         cv2.imwrite(str(ruta1), foto_sintetica_buena)
+485:         cv2.imwrite(str(ruta2), foto_sintetica_rotada_180)
+486: 
+487:         output_root = tmp_path / "work"
+488: 
+489:         resultados = process_batch([ruta1, ruta2], output_root=output_root)
+490: 
+491:         assert len(resultados) == 2
+492:         assert all(r.status == "OK" for r in resultados)
+493: 
+494:         manifest_path = output_root / "vision_manifest.json"
+495:         assert manifest_path.exists()
+496: 
+497:         with manifest_path.open(encoding="utf-8") as file:
+498:             manifest = json.load(file)
+499: 
+500:         assert len(manifest) == 2
+501:         assert {entry["file"] for entry in manifest} == {"ficha_001.jpg", "ficha_002.jpg"}
+502:         assert all(entry["status"] == "OK" for entry in manifest)
+503:         assert (output_root / "normalized" / "ficha_001.png").exists()
+504:         assert (output_root / "normalized" / "ficha_002.png").exists()
+505: 
+506: 
+507: class TestExtraerRecorte:
+508:     """Decisión 4 del equipo: helper simple de recorte para P3."""
+509: 
+510:     def test_recorte_centrado_tiene_el_tamano_pedido(self, imagen_canonica_buena):
+511:         crop = extraer_recorte(imagen_canonica_buena, center=(1000, 700), crop_size=64)
+512:         assert crop.shape[:2] == (64, 64)
+513: 
+514:     def test_recorte_cerca_del_borde_mantiene_tamano_exacto(self, imagen_canonica_buena):
+515:         # Centro casi pegado a la esquina superior izquierda (0,0)
+516:         crop = extraer_recorte(imagen_canonica_buena, center=(5, 5), crop_size=64)
+517:         assert crop.shape[:2] == (64, 64)
+518: 
+519:     def test_recorte_usa_marcador_conocido_como_referencia(
+520:         self, imagen_canonica_buena, template
+521:     ):
+522:         # El marcador top_left cae exacto en marker_centers["top_left"];
+523:         # el recorte alrededor de ese punto debe verse mayormente oscuro.
+524:         centro = template.marker_centers["top_left"]
+525:         crop = extraer_recorte(imagen_canonica_buena, center=centro, crop_size=80)
+526: 
+527:         gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+528:         assert gray.mean() < 100  # predominantemente oscuro (el marcador negro)
+529: 
+530: 
+531: # ---------------------------------------------------------------------------
+532: # Casos "dorados" con fotos reales (se saltan si la foto no está presente)
+533: # ---------------------------------------------------------------------------
+534: 
+535: class TestFotosDoradas:
+536:     """
+537:     Estas pruebas usan fotos reales capturadas durante el desarrollo de
+538:     P2. No forman parte del repo (van en pruebas/, normalmente
+539:     ignoradas por git), así que cada prueba se salta automáticamente
+540:     si el archivo no está presente en la máquina que ejecuta pytest.
+541:     """
+542: 
+543:     @pytest.mark.parametrize("nombre", ["Prueba_1", "Prueba_2", "Prueba_3"])
+544:     def test_fotos_buenas_conocidas_pasan_las_3_fases(self, nombre, template):
+545:         path = _skip_si_no_existe(nombre)
+546: 
+547:         resultado = process_ficha(path)
+548: 
+549:         assert resultado.status == "OK", f"{nombre}: {resultado.message}"
+550:         assert resultado.canonical_image is not None
+</file>
+
+<file path="utilitarios/extracción_coordenadas/00_instrucciones.md">
+1: 1. Ejecuta calculadora_origen_burbuja.py e ingresa las coordenadas dadas por Figma, el programa esta adaptado para ayudar con la generación de ids de preguntas.
+2: 2. Una vez finalizada la operación tendras como salida un txt el cual sirve como input para generar_json_centros.py quien es finalmente el que nos da los JSON que consume la capa 
+3: de Visión por Computadora.
+4: 
+5: Nota: Revisar el ejemplo dado junto con Figma, es importante para no alterar accidentalmente el ingreso de coordenadas y generar un 
+6: output erroneo
+</file>
+
+<file path="utilitarios/extracción_coordenadas/01_calculadora_origen_respuestas.py">
+ 1: # calculadora_origen_burbuja.py
+ 2: 
+ 3: from pathlib import Path
+ 4: 
+ 5: OPTIONS = ["A", "B", "C", "D", "E"]
+ 6: TOTAL_QUESTIONS = 10
+ 7: 
+ 8: BASE_DIR = Path(__file__).resolve().parent
+ 9: OUTPUT_TXT = BASE_DIR / "scanexam_respuestas_xy.txt"
+10: 
+11: lineas = []
+12: 
+13: print("Calculadora de origen de burbujas")
+14: print("Genera el insumo para generar_json_centros.py")
+15: print("Ingresa X e Y desde Figma.")
+16: print("X e Y deben ser la esquina superior izquierda del círculo.")
+17: print("Formato generado: id,x,y")
+18: print("Orden esperado: q_01_A, q_01_B, ..., q_01_E, q_02_A, ... q_10_E")
+19: print("Presiona Ctrl + C para terminar y guardar lo capturado.\n")
+20: 
+21: try:
+22:     for question in range(1, TOTAL_QUESTIONS + 1):
+23:         for option in OPTIONS:
+24:             bubble_id = f"q_{question:02d}_{option}"
+25: 
+26:             print(f"Burbuja actual: {bubble_id}")
+27: 
+28:             x = input("X: ").strip()
+29:             y = input("Y: ").strip()
+30: 
+31:             # Validación básica
+32:             float(x)
+33:             float(y)
+34: 
+35:             linea = f"{bubble_id},{x},{y}"
+36:             lineas.append(linea)
+37: 
+38:             print(linea)
+39:             print("-" * 35)
+40: 
+41: except ValueError:
+42:     print("\nError: ingresa solo números.")
+43: 
+44: except KeyboardInterrupt:
+45:     print("\nCaptura interrumpida por el usuario.")
+46: 
+47: finally:
+48:     if lineas:
+49:         contenido = "\n".join([
+50:             "# scanexam_respuestas_xy.txt",
+51:             "# Formato: id,x,y",
+52:             "# x,y son la esquina superior izquierda del círculo en Figma.",
+53:             "# Sistema de coordenadas:",
+54:             "# - Origen (0,0): esquina superior izquierda del frame.",
+55:             "# - X crece hacia la derecha.",
+56:             "# - Y crece hacia abajo.",
+57:             "# - No invertir X/Y.",
+58:             "",
+59:             *lineas
+60:         ])
+61: 
+62:         OUTPUT_TXT.write_text(contenido, encoding="utf-8")
+63: 
+64:         print("\nTXT generado correctamente:")
+65:         print(OUTPUT_TXT)
+66: 
+67:         print("\nContenido generado:")
+68:         print(contenido)
+69:     else:
+70:         print("\nNo se capturaron coordenadas.")
+</file>
+
+<file path="utilitarios/extracción_coordenadas/02_generar_json_centros_respuestas.py">
+ 1: # generar_json_centros.py
+ 2: 
+ 3: import json
+ 4: from pathlib import Path
+ 5: 
+ 6: BUBBLE_SIZE = 48
+ 7: 
+ 8: BASE_DIR = Path(__file__).resolve().parent
+ 9: 
+10: INPUT_TXT = BASE_DIR / "scanexam_respuestas_xy.txt"
+11: OUTPUT_JSON = BASE_DIR / "scanexam_respuestas_centros.json"
+12: 
+13: 
+14: def parse_line(line: str, line_number: int):
+15:     line = line.strip()
+16: 
+17:     if not line or line.startswith("#"):
+18:         return None
+19: 
+20:     parts = [part.strip() for part in line.split(",")]
+21: 
+22:     if len(parts) != 3:
+23:         raise ValueError(
+24:             f"Línea {line_number}: formato inválido. Usa: id,x,y"
+25:         )
+26: 
+27:     bubble_id, x_raw, y_raw = parts
+28: 
+29:     try:
+30:         x = float(x_raw)
+31:         y = float(y_raw)
+32:     except ValueError:
+33:         raise ValueError(
+34:             f"Línea {line_number}: X e Y deben ser numéricos."
+35:         )
+36: 
+37:     return bubble_id, x, y
+38: 
+39: 
+40: def main():
+41:     input_path = INPUT_TXT
+42:     output_path = OUTPUT_JSON
+43: 
+44:     if not input_path.exists():
+45:         raise FileNotFoundError(
+46:             f"No se encontró {input_path}"
+47:         )
+48: 
+49:     half = BUBBLE_SIZE / 2
+50:     centers = {}
+51: 
+52:     with input_path.open("r", encoding="utf-8") as file:
+53:         for line_number, line in enumerate(file, start=1):
+54:             parsed = parse_line(line, line_number)
+55: 
+56:             if parsed is None:
+57:                 continue
+58: 
+59:             bubble_id, x, y = parsed
+60: 
+61:             if bubble_id in centers:
+62:                 raise ValueError(
+63:                     f"Línea {line_number}: id repetido: {bubble_id}"
+64:                 )
+65: 
+66:             cx = round(x + half)
+67:             cy = round(y + half)
+68: 
+69:             centers[bubble_id] = [cx, cy]
+70: 
+71:     with output_path.open("w", encoding="utf-8") as file:
+72:         json.dump(centers, file, indent=4, ensure_ascii=False)
+73: 
+74:     print("JSON generado correctamente:")
+75:     print(output_path)
+76:     print()
+77:     print(json.dumps(centers, indent=4, ensure_ascii=False))
+78: 
+79: 
+80: if __name__ == "__main__":
+81:     main()
+</file>
+
+<file path="utilitarios/extracción_coordenadas/03_calculadora_origen_identificacion.py">
+ 1: # calculadora_origen_identificacion.py
+ 2: 
+ 3: from pathlib import Path
+ 4: 
+ 5: TOTAL_COLUMNAS = 8
+ 6: VALORES = range(10)
+ 7: 
+ 8: BASE_DIR = Path(__file__).resolve().parent
+ 9: OUTPUT_TXT = BASE_DIR / "scanexam_identificacion_xy.txt"
+10: 
+11: lineas = []
+12: 
+13: print("Calculadora de origen para código de estudiante")
+14: print("Genera el insumo para generar_json_centros_identificacion.py")
+15: print("Ingresa X e Y desde Figma.")
+16: print("X e Y deben ser la esquina superior izquierda del círculo.")
+17: print("Formato generado: id,x,y")
+18: print("Orden esperado: id_c08_v0, id_c08_v1, ..., id_c08_v9, id_c07_v0, ... id_c01_v9")
+19: print("Presiona Ctrl + C para terminar y guardar lo capturado.\n")
+20: 
+21: try:
+22:     for columna in range(TOTAL_COLUMNAS, 0, -1):
+23:         for valor in VALORES:
+24:             bubble_id = f"id_c{columna:02d}_v{valor}"
+25: 
+26:             print(f"Burbuja actual: {bubble_id}")
+27: 
+28:             x = input("X: ").strip()
+29:             y = input("Y: ").strip()
+30: 
+31:             # Validación básica
+32:             float(x)
+33:             float(y)
+34: 
+35:             linea = f"{bubble_id},{x},{y}"
+36:             lineas.append(linea)
+37: 
+38:             print(linea)
+39:             print("-" * 35)
+40: 
+41: except ValueError:
+42:     print("\nError: ingresa solo números.")
+43: 
+44: except KeyboardInterrupt:
+45:     print("\nCaptura interrumpida por el usuario.")
+46: 
+47: finally:
+48:     if lineas:
+49:         contenido = "\n".join([
+50:             "# scanexam_identificacion_xy.txt",
+51:             "# Formato: id,x,y",
+52:             "# x,y son la esquina superior izquierda del círculo en Figma.",
+53:             "# Sistema de coordenadas:",
+54:             "# - Origen (0,0): esquina superior izquierda del frame.",
+55:             "# - X crece hacia la derecha.",
+56:             "# - Y crece hacia abajo.",
+57:             "# - No invertir X/Y.",
+58:             "# Nomenclatura:",
+59:             "# - id_c08_v0 = identificación, columna 8, valor 0.",
+60:             "",
+61:             *lineas
+62:         ])
+63: 
+64:         OUTPUT_TXT.write_text(contenido, encoding="utf-8")
+65: 
+66:         print("\nTXT generado correctamente:")
+67:         print(OUTPUT_TXT)
+68: 
+69:         print("\nContenido generado:")
+70:         print(contenido)
+71:     else:
+72:         print("\nNo se capturaron coordenadas.")
+</file>
+
+<file path="utilitarios/extracción_coordenadas/04_generar_json_centros_identificacion.py">
+ 1: # generar_json_centros_identificacion.py
+ 2: 
+ 3: import json
+ 4: from pathlib import Path
+ 5: 
+ 6: BUBBLE_SIZE = 48
+ 7: 
+ 8: BASE_DIR = Path(__file__).resolve().parent
+ 9: 
+10: INPUT_TXT = BASE_DIR / "scanexam_identificacion_xy.txt"
+11: OUTPUT_JSON = BASE_DIR / "scanexam_identificacion_centros.json"
+12: 
+13: 
+14: def parse_line(line: str, line_number: int):
+15:     line = line.strip()
+16: 
+17:     if not line or line.startswith("#"):
+18:         return None
+19: 
+20:     parts = [part.strip() for part in line.split(",")]
+21: 
+22:     if len(parts) != 3:
+23:         raise ValueError(
+24:             f"Línea {line_number}: formato inválido. Usa: id,x,y"
+25:         )
+26: 
+27:     bubble_id, x_raw, y_raw = parts
+28: 
+29:     try:
+30:         x = float(x_raw)
+31:         y = float(y_raw)
+32:     except ValueError:
+33:         raise ValueError(
+34:             f"Línea {line_number}: X e Y deben ser numéricos."
+35:         )
+36: 
+37:     return bubble_id, x, y
+38: 
+39: 
+40: def main():
+41:     input_path = INPUT_TXT
+42:     output_path = OUTPUT_JSON
+43: 
+44:     if not input_path.exists():
+45:         raise FileNotFoundError(
+46:             f"No se encontró {input_path}"
+47:         )
+48: 
+49:     half = BUBBLE_SIZE / 2
+50:     centers = {}
+51: 
+52:     with input_path.open("r", encoding="utf-8") as file:
+53:         for line_number, line in enumerate(file, start=1):
+54:             parsed = parse_line(line, line_number)
+55: 
+56:             if parsed is None:
+57:                 continue
+58: 
+59:             bubble_id, x, y = parsed
+60: 
+61:             if bubble_id in centers:
+62:                 raise ValueError(
+63:                     f"Línea {line_number}: id repetido: {bubble_id}"
+64:                 )
+65: 
+66:             cx = round(x + half)
+67:             cy = round(y + half)
+68: 
+69:             centers[bubble_id] = [cx, cy]
+70: 
+71:     with output_path.open("w", encoding="utf-8") as file:
+72:         json.dump(centers, file, indent=4, ensure_ascii=False)
+73: 
+74:     print("JSON generado correctamente:")
+75:     print(output_path)
+76:     print()
+77:     print(json.dumps(centers, indent=4, ensure_ascii=False))
+78: 
+79: 
+80: if __name__ == "__main__":
+81:     main()
+</file>
+
+<file path="utilitarios/extracción_coordenadas/05_crear_template_config.py">
+  1: # 05_crear_template_config.py
+  2: 
+  3: import json
+  4: from pathlib import Path
+  5: 
+  6: 
+  7: def encontrar_raiz_proyecto() -> Path:
+  8:     """
+  9:     Busca la raíz del proyecto subiendo carpetas hasta encontrar
+ 10:     archivos característicos del repo.
+ 11:     """
+ 12:     actual = Path(__file__).resolve()
+ 13: 
+ 14:     for parent in actual.parents:
+ 15:         if (parent / "README.md").exists() and (parent / "requirements.txt").exists():
+ 16:             return parent
+ 17: 
+ 18:     raise RuntimeError(
+ 19:         "No se pudo encontrar la raíz del proyecto. "
+ 20:         "Verifica que README.md y requirements.txt existan en la raíz."
+ 21:     )
+ 22: 
+ 23: 
+ 24: PROJECT_ROOT = encontrar_raiz_proyecto()
+ 25: 
+ 26: TEMPLATE_DIR = PROJECT_ROOT / "data" / "plantilla" / "ficha_optica_a5_horizontal_v1"
+ 27: OUTPUT_FILE = TEMPLATE_DIR / "template_config.json"
+ 28: 
+ 29: CANONICAL_WIDTH = 2100
+ 30: CANONICAL_HEIGHT = 1480
+ 31: 
+ 32: TEMPLATE_PDF = "FICHA_OPTICA_V1.pdf"
+ 33: TEMPLATE_IMAGE = "plantilla_referencia.png"
+ 34: 
+ 35: config = {
+ 36:     "schema_version": "1.0.0",
+ 37:     "template_id": "ficha_optica_a5_horizontal_v1",
+ 38:     "template_name": "Ficha Óptica A5 Horizontal v1",
+ 39: 
+ 40:     "canonical_size": {
+ 41:         "width_px": CANONICAL_WIDTH,
+ 42:         "height_px": CANONICAL_HEIGHT
+ 43:     },
+ 44: 
+ 45:     "canonical_view": {
+ 46:         "orientation": "landscape",
+ 47:         "orientation_es": "horizontal",
+ 48:         "reference_file": TEMPLATE_IMAGE,
+ 49:         "semantic_layout": {
+ 50:             "top": "encabezado de la ficha",
+ 51:             "left": "bloque de identificación del estudiante",
+ 52:             "right": "bloque de respuestas",
+ 53:             "orientation_marker_position": "top_right"
+ 54:         },
+ 55:         "pipeline_contract": (
+ 56:             "P2 debe transformar toda captura real a la imagen canónica definida "
+ 57:             "en canonical_size antes de que P3 use los centros de burbujas."
+ 58:         )
+ 59:     },
+ 60: 
+ 61:     "physical_size": {
+ 62:         "unit": "mm",
+ 63:         "width": 210,
+ 64:         "height": 148,
+ 65:         "px_per_mm": 10,
+ 66:         "dpi_reference": 254
+ 67:     },
+ 68: 
+ 69:     "coordinate_system": {
+ 70:         "applies_to": "canonical_image_after_perspective_correction",
+ 71:         "origin": "top_left",
+ 72:         "coordinate_order": "[x, y]",
+ 73:         "x_axis": "right",
+ 74:         "y_axis": "down",
+ 75:         "unit": "px",
+ 76:         "note": (
+ 77:             "Las coordenadas se interpretan únicamente sobre la imagen canónica "
+ 78:             "A5 horizontal. No aplicar sobre la foto cruda."
+ 79:         )
+ 80:     },
+ 81: 
+ 82:     "bubble": {
+ 83:         "diameter_px": 48,
+ 84:         "crop_size_px": 64,
+ 85:         "analysis_inner_radius_px": 16,
+ 86:         "center_source": (
+ 87:             "Centro = X + 24, Y + 24 desde la esquina superior izquierda "
+ 88:             "del círculo 48x48 en Figma."
+ 89:         )
+ 90:     },
+ 91: 
+ 92:     "student_id": {
+ 93:         "columns": 8,
+ 94:         "values": 10,
+ 95:         "id_pattern": "id_c{column:02d}_v{value}",
+ 96:         "reading_order": "c08_to_c01",
+ 97:         "centers_file": "identificacion_centros.json"
+ 98:     },
+ 99: 
+100:     "answers": {
+101:         "questions": 10,
+102:         "options": ["A", "B", "C", "D", "E"],
+103:         "id_pattern": "q_{question:02d}_{option}",
+104:         "centers_file": "respuestas_centros.json"
+105:     },
+106: 
+107:     "perspective": {
+108:         "markers_file": "marcadores_centros.json",
+109:         "output_size_px": [CANONICAL_WIDTH, CANONICAL_HEIGHT],
+110:         "method": "homography",
+111:         "note": (
+112:             "Los marcadores se usan para corregir perspectiva y generar "
+113:             "la imagen canónica antes de leer burbujas."
+114:         )
+115:     },
+116: 
+117:     "reference_files": {
+118:         "template_pdf": TEMPLATE_PDF,
+119:         "template_image": TEMPLATE_IMAGE
+120:     }
+121: }
+122: 
+123: 
+124: def validar_archivos_requeridos():
+125:     archivos = [
+126:         TEMPLATE_DIR / TEMPLATE_PDF,
+127:         TEMPLATE_DIR / TEMPLATE_IMAGE,
+128:         TEMPLATE_DIR / "identificacion_centros.json",
+129:         TEMPLATE_DIR / "respuestas_centros.json",
+130:         TEMPLATE_DIR / "marcadores_centros.json",
+131:     ]
+132: 
+133:     faltantes = [archivo for archivo in archivos if not archivo.exists()]
+134: 
+135:     if faltantes:
+136:         print("Advertencia: faltan algunos archivos referenciados por el template:")
+137:         for archivo in faltantes:
+138:             print(f"- {archivo}")
+139:         print()
+140:     else:
+141:         print("Todos los archivos referenciados existen.")
+142: 
+143: 
+144: def main():
+145:     TEMPLATE_DIR.mkdir(parents=True, exist_ok=True)
+146: 
+147:     validar_archivos_requeridos()
+148: 
+149:     with OUTPUT_FILE.open("w", encoding="utf-8") as file:
+150:         json.dump(config, file, indent=4, ensure_ascii=False)
+151: 
+152:     print("template_config.json generado correctamente:")
+153:     print(OUTPUT_FILE)
+154: 
+155: 
+156: if __name__ == "__main__":
+157:     main()
+</file>
+
+<file path="utilitarios/extracción_coordenadas/scanexam_identificacion_xy.txt">
+ 1: # scanexam_identificacion_xy.txt
+ 2: # Formato: id,x,y
+ 3: # x,y son la esquina superior izquierda del círculo en Figma.
+ 4: # Sistema de coordenadas:
+ 5: # - Origen (0,0): esquina superior izquierda del frame.
+ 6: # - X crece hacia la derecha.
+ 7: # - Y crece hacia abajo.
+ 8: # - No invertir X/Y.
+ 9: #
+10: # Nota de generación:
+11: # - Se normalizó la grilla usando id_c08_v0=(389.9,575.6) e id_c06_v0=(537.9,575.6).
+12: # - Por consistencia, el paso horizontal usado es 74 px.
+13: # - Por eso id_c07_v0 queda en (463.9,575.6). Verificar en Figma si tu captura previa (455.9,567.6) fue accidental.
+14: 
+15: id_c08_v0,389.9,575.6
+16: id_c08_v1,389.9,639.6
+17: id_c08_v2,389.9,703.6
+18: id_c08_v3,389.9,767.6
+19: id_c08_v4,389.9,831.6
+20: id_c08_v5,389.9,895.6
+21: id_c08_v6,389.9,959.6
+22: id_c08_v7,389.9,1023.6
+23: id_c08_v8,389.9,1087.6
+24: id_c08_v9,389.9,1151.6
+25: id_c07_v0,463.9,575.6
+26: id_c07_v1,463.9,639.6
+27: id_c07_v2,463.9,703.6
+28: id_c07_v3,463.9,767.6
+29: id_c07_v4,463.9,831.6
+30: id_c07_v5,463.9,895.6
+31: id_c07_v6,463.9,959.6
+32: id_c07_v7,463.9,1023.6
+33: id_c07_v8,463.9,1087.6
+34: id_c07_v9,463.9,1151.6
+35: id_c06_v0,537.9,575.6
+36: id_c06_v1,537.9,639.6
+37: id_c06_v2,537.9,703.6
+38: id_c06_v3,537.9,767.6
+39: id_c06_v4,537.9,831.6
+40: id_c06_v5,537.9,895.6
+41: id_c06_v6,537.9,959.6
+42: id_c06_v7,537.9,1023.6
+43: id_c06_v8,537.9,1087.6
+44: id_c06_v9,537.9,1151.6
+45: id_c05_v0,611.9,575.6
+46: id_c05_v1,611.9,639.6
+47: id_c05_v2,611.9,703.6
+48: id_c05_v3,611.9,767.6
+49: id_c05_v4,611.9,831.6
+50: id_c05_v5,611.9,895.6
+51: id_c05_v6,611.9,959.6
+52: id_c05_v7,611.9,1023.6
+53: id_c05_v8,611.9,1087.6
+54: id_c05_v9,611.9,1151.6
+55: id_c04_v0,685.9,575.6
+56: id_c04_v1,685.9,639.6
+57: id_c04_v2,685.9,703.6
+58: id_c04_v3,685.9,767.6
+59: id_c04_v4,685.9,831.6
+60: id_c04_v5,685.9,895.6
+61: id_c04_v6,685.9,959.6
+62: id_c04_v7,685.9,1023.6
+63: id_c04_v8,685.9,1087.6
+64: id_c04_v9,685.9,1151.6
+65: id_c03_v0,759.9,575.6
+66: id_c03_v1,759.9,639.6
+67: id_c03_v2,759.9,703.6
+68: id_c03_v3,759.9,767.6
+69: id_c03_v4,759.9,831.6
+70: id_c03_v5,759.9,895.6
+71: id_c03_v6,759.9,959.6
+72: id_c03_v7,759.9,1023.6
+73: id_c03_v8,759.9,1087.6
+74: id_c03_v9,759.9,1151.6
+75: id_c02_v0,833.9,575.6
+76: id_c02_v1,833.9,639.6
+77: id_c02_v2,833.9,703.6
+78: id_c02_v3,833.9,767.6
+79: id_c02_v4,833.9,831.6
+80: id_c02_v5,833.9,895.6
+81: id_c02_v6,833.9,959.6
+82: id_c02_v7,833.9,1023.6
+83: id_c02_v8,833.9,1087.6
+84: id_c02_v9,833.9,1151.6
+85: id_c01_v0,907.9,575.6
+86: id_c01_v1,907.9,639.6
+87: id_c01_v2,907.9,703.6
+88: id_c01_v3,907.9,767.6
+89: id_c01_v4,907.9,831.6
+90: id_c01_v5,907.9,895.6
+91: id_c01_v6,907.9,959.6
+92: id_c01_v7,907.9,1023.6
+93: id_c01_v8,907.9,1087.6
+94: id_c01_v9,907.9,1151.6
+</file>
+
+<file path="utilitarios/extracción_coordenadas/scanexam_respuestas_xy.txt">
+ 1: # scanexam_respuestas_xy.txt
+ 2: # Formato: id,x,y
+ 3: # x,y son la esquina superior izquierda del círculo en Figma.
+ 4: # La burbuja mide 48x48 px; el script calculará el centro sumando 24 px.
+ 5: 
+ 6: q_01_A,526,1252
+ 7: q_01_B,526,1380
+ 8: q_01_C,526,1511
+ 9: q_01_D,526,1643
+10: q_01_E,526,1773
+11: q_02_A,606,1252
+12: q_02_B,606,1380
+13: q_02_C,606,1511
+14: q_02_D,606,1643
+15: q_02_E,606,1773
+16: q_03_A,686,1252
+17: q_03_B,686,1380
+18: q_03_C,686,1511
+19: q_03_D,686,1643
+20: q_03_E,686,1773
+21: q_04_A,766,1252
+22: q_04_B,766,1380
+23: q_04_C,766,1511
+24: q_04_D,766,1643
+25: q_04_E,766,1773
+26: q_05_A,846,1252
+27: q_05_B,846,1380
+28: q_05_C,846,1511
+29: q_05_D,846,1643
+30: q_05_E,846,1773
+31: q_06_A,926,1252
+32: q_06_B,926,1380
+33: q_06_C,926,1511
+34: q_06_D,926,1643
+35: q_06_E,926,1773
+36: q_07_A,1006,1252
+37: q_07_B,1006,1380
+38: q_07_C,1006,1511
+39: q_07_D,1006,1643
+40: q_07_E,1006,1773
+41: q_08_A,1086,1252
+42: q_08_B,1086,1380
+43: q_08_C,1086,1511
+44: q_08_D,1086,1643
+45: q_08_E,1086,1773
+46: q_09_A,1166,1252
+47: q_09_B,1166,1380
+48: q_09_C,1166,1511
+49: q_09_D,1166,1643
+50: q_09_E,1166,1773
+51: q_10_A,1246,1252
+52: q_10_B,1246,1380
+53: q_10_C,1246,1511
+54: q_10_D,1246,1643
+55: q_10_E,1246,1773
+</file>
+
+<file path="utilitarios/validacion_plantilla/validar_centros.py">
+  1: # validar_centros.py
+  2: 
+  3: import json, time
+  4: from pathlib import Path
+  5: 
+  6: import cv2
+  7: 
+  8: 
+  9: TEMPLATE_ID = "ficha_optica_a5_horizontal_v1"
+ 10: 
+ 11: DRAW_CROP_BOX = True
+ 12: DRAW_LABELS = False
+ 13: 
+ 14: # Colores en formato BGR porque OpenCV usa BGR, no RGB
+ 15: COLOR_RESPUESTAS = (0, 180, 0)          # verde
+ 16: COLOR_IDENTIFICACION = (255, 120, 0)    # azul claro/naranja visual
+ 17: COLOR_MARCADORES = (0, 0, 255)          # rojo
+ 18: COLOR_CROP = (180, 180, 180)            # gris
+ 19: COLOR_TEXT = (237, 40, 237)             # morado
+ 20: 
+ 21: 
+ 22: def encontrar_raiz_proyecto() -> Path:
+ 23:     actual = Path(__file__).resolve()
+ 24: 
+ 25:     for parent in actual.parents:
+ 26:         if (parent / "README.md").exists() and (parent / "requirements.txt").exists():
+ 27:             return parent
+ 28: 
+ 29:     raise RuntimeError(
+ 30:         "No se pudo encontrar la raíz del proyecto. "
+ 31:         "Verifica que README.md y requirements.txt existan en la raíz."
+ 32:     )
+ 33: 
+ 34: 
+ 35: def cargar_json(path: Path) -> dict:
+ 36:     if not path.exists():
+ 37:         raise FileNotFoundError(f"No se encontró el archivo: {path}")
+ 38: 
+ 39:     with path.open("r", encoding="utf-8") as file:
+ 40:         return json.load(file)
+ 41: 
+ 42: 
+ 43: def resolver_ruta(template_dir: Path, relative_path: str) -> Path:
+ 44:     return template_dir / relative_path
+ 45: 
+ 46: 
+ 47: def validar_tamano_imagen(image, expected_width: int, expected_height: int):
+ 48:     height, width = image.shape[:2]
+ 49: 
+ 50:     if width != expected_width or height != expected_height:
+ 51:         raise ValueError(
+ 52:             "La imagen de referencia no coincide con canonical_size.\n"
+ 53:             f"Esperado: {expected_width}x{expected_height}px\n"
+ 54:             f"Encontrado: {width}x{height}px\n"
+ 55:             "Exporta plantilla_referencia.png desde Figma con el tamaño exacto."
+ 56:         )
+ 57: 
+ 58: 
+ 59: def extraer_marcadores(markers_data: dict) -> dict:
+ 60:     """
+ 61:     Soporta dos formatos:
+ 62: 
+ 63:     Formato recomendado:
+ 64:     {
+ 65:         "marker_size_px": 100,
+ 66:         "coordinate_type": "center",
+ 67:         "markers": {
+ 68:             "top_left": [180, 180],
+ 69:             ...
+ 70:         },
+ 71:         "orientation_marker": "top_right"
+ 72:     }
+ 73: 
+ 74:     Formato simple:
+ 75:     {
+ 76:         "top_left": [180, 180],
+ 77:         "top_right": [1920, 180],
+ 78:         ...
+ 79:     }
+ 80:     """
+ 81:     if "markers" in markers_data:
+ 82:         return markers_data["markers"]
+ 83: 
+ 84:     return {
+ 85:         key: value
+ 86:         for key, value in markers_data.items()
+ 87:         if isinstance(value, list) and len(value) == 2
+ 88:     }
+ 89: 
+ 90: 
+ 91: def punto_en_imagen(center, width: int, height: int) -> bool:
+ 92:     x, y = center
+ 93:     return 0 <= x < width and 0 <= y < height
+ 94: 
+ 95: 
+ 96: def dibujar_centro(
+ 97:     image,
+ 98:     bubble_id: str,
+ 99:     center,
+100:     color,
+101:     crop_size: int | None = None,
+102:     draw_crop_box: bool = False,
+103:     draw_label: bool = False,
+104: ):
+105:     cx, cy = int(round(center[0])), int(round(center[1]))
+106: 
+107:     # Punto central
+108:     cv2.circle(image, (cx, cy), 5, color, thickness=-1)
+109: 
+110:     # Círculo guía alrededor del centro
+111:     cv2.circle(image, (cx, cy), 12, color, thickness=2)
+112: 
+113:     # Caja de recorte esperada
+114:     if draw_crop_box and crop_size is not None:
+115:         half = crop_size // 2
+116: 
+117:         x1 = cx - half
+118:         y1 = cy - half
+119:         x2 = x1 + crop_size
+120:         y2 = y1 + crop_size
+121: 
+122:         cv2.rectangle(image, (x1, y1), (x2, y2), COLOR_CROP, thickness=1)
+123: 
+124:     # Etiqueta opcional
+125:     if draw_label:
+126:         cv2.putText(
+127:             image,
+128:             bubble_id,
+129:             (cx + 8, cy - 8),
+130:             cv2.FONT_HERSHEY_SIMPLEX,
+131:             0.35,
+132:             COLOR_TEXT,
+133:             1,
+134:             cv2.LINE_AA,
+135:         )
+136: 
+137: 
+138: def validar_y_dibujar_grupo(
+139:     image,
+140:     centers: dict,
+141:     group_name: str,
+142:     color,
+143:     crop_size: int | None,
+144:     draw_crop_box: bool,
+145:     draw_labels: bool,
+146: ) -> list[str]:
+147:     height, width = image.shape[:2]
+148:     errores = []
+149: 
+150:     for item_id, center in centers.items():
+151:         if not isinstance(center, list) or len(center) != 2:
+152:             errores.append(f"{group_name}: {item_id} no tiene formato [x, y].")
+153:             continue
+154: 
+155:         if not punto_en_imagen(center, width, height):
+156:             errores.append(
+157:                 f"{group_name}: {item_id} está fuera de imagen: {center}"
+158:             )
+159:             continue
+160: 
+161:         dibujar_centro(
+162:             image=image,
+163:             bubble_id=item_id,
+164:             center=center,
+165:             color=color,
+166:             crop_size=crop_size,
+167:             draw_crop_box=draw_crop_box,
+168:             draw_label=draw_labels,
+169:         )
+170: 
+171:     return errores
+172: 
+173: 
+174: def main():
+175:     inicio = time.perf_counter()
+176:     project_root = encontrar_raiz_proyecto()
+177: 
+178:     template_dir = (
+179:         project_root
+180:         / "data"
+181:         / "plantilla"
+182:         / TEMPLATE_ID
+183:     )
+184: 
+185:     template_config_path = template_dir / "template_config.json"
+186:     config = cargar_json(template_config_path)
+187: 
+188:     canonical_width = config["canonical_size"]["width_px"]
+189:     canonical_height = config["canonical_size"]["height_px"]
+190: 
+191:     reference_image_name = config["reference_files"]["template_image"]
+192:     reference_image_path = resolver_ruta(template_dir, reference_image_name)
+193: 
+194:     answers_path = resolver_ruta(
+195:         template_dir,
+196:         config["answers"]["centers_file"]
+197:     )
+198: 
+199:     student_id_path = resolver_ruta(
+200:         template_dir,
+201:         config["student_id"]["centers_file"]
+202:     )
+203: 
+204:     markers_path = resolver_ruta(
+205:         template_dir,
+206:         config["perspective"]["markers_file"]
+207:     )
+208: 
+209:     output_dir = project_root / "docs" / "evidencia_capturas"
+210:     output_dir.mkdir(parents=True, exist_ok=True)
+211: 
+212:     output_path = output_dir / "validacion_centros_v1.png"
+213: 
+214:     image = cv2.imread(str(reference_image_path))
+215: 
+216:     if image is None:
+217:         raise FileNotFoundError(
+218:             f"No se pudo cargar la imagen de referencia: {reference_image_path}"
+219:         )
+220: 
+221:     validar_tamano_imagen(
+222:         image=image,
+223:         expected_width=canonical_width,
+224:         expected_height=canonical_height,
+225:     )
+226: 
+227:     answers_centers = cargar_json(answers_path)
+228:     student_id_centers = cargar_json(student_id_path)
+229:     markers_data = cargar_json(markers_path)
+230:     markers_centers = extraer_marcadores(markers_data)
+231: 
+232:     crop_size = config["bubble"]["crop_size_px"]
+233: 
+234:     errores = []
+235: 
+236:     errores += validar_y_dibujar_grupo(
+237:         image=image,
+238:         centers=answers_centers,
+239:         group_name="respuestas",
+240:         color=COLOR_RESPUESTAS,
+241:         crop_size=crop_size,
+242:         draw_crop_box=DRAW_CROP_BOX,
+243:         draw_labels=DRAW_LABELS,
+244:     )
+245: 
+246:     errores += validar_y_dibujar_grupo(
+247:         image=image,
+248:         centers=student_id_centers,
+249:         group_name="identificacion",
+250:         color=COLOR_IDENTIFICACION,
+251:         crop_size=crop_size,
+252:         draw_crop_box=DRAW_CROP_BOX,
+253:         draw_labels=DRAW_LABELS,
+254:     )
+255: 
+256:     errores += validar_y_dibujar_grupo(
+257:         image=image,
+258:         centers=markers_centers,
+259:         group_name="marcadores",
+260:         color=COLOR_MARCADORES,
+261:         crop_size=None,
+262:         draw_crop_box=False,
+263:         draw_labels=True,
+264:     )
+265: 
+266:     cv2.imwrite(str(output_path), image)
+267: 
+268:     print("Validación visual generada correctamente:")
+269:     print(output_path)
+270:     print()
+271: 
+272:     print("Resumen:")
+273:     print(f"- Respuestas: {len(answers_centers)} centros")
+274:     print(f"- Identificación: {len(student_id_centers)} centros")
+275:     print(f"- Marcadores: {len(markers_centers)} centros")
+276:     print(f"- Crop size usado: {crop_size}px")
+277:     print()
+278: 
+279:     if errores:
+280:         print("Advertencias encontradas:")
+281:         for error in errores:
+282:             print(f"- {error}")
+283:     else:
+284:         print("No se encontraron errores de formato ni puntos fuera de imagen.")
+285:     fin = time.perf_counter()
+286:     tiempo_total = fin - inicio
+287:     print(f"Tiempo de ejecución: {tiempo_total:.4f} segundos")
+288: 
+289: if __name__ == "__main__":
+290:     main()
+</file>
+
+</files>

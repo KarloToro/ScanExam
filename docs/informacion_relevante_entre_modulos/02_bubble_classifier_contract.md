@@ -66,8 +66,8 @@ Ejemplos
 
 ``` text
 	ficha_id = ficha_001
-	bubble_id_base = q01_A
-	crop_id = ficha_001_q01_A
+	bubble_id_base = q_01_A
+	crop_id = ficha_001_q_01_A
 ```
 
 2. Para identificación:
@@ -133,7 +133,7 @@ El clasificador devuelve esta estructura:
 
 ```json
 {
-  "crop_id": "ficha_001_q01_A",
+  "crop_id": "ficha_001_q_01_A",
   "predicted_class": "MARKED",
   "confidence": 0.94
 }
@@ -183,12 +183,12 @@ Ejemplo:
   "template_id": "ficha_optica_a5_horizontal_v1",
   "predictions": [
     {
-      "crop_id": "ficha_001_q01_A",
+      "crop_id": "ficha_001_q_01_A",
       "predicted_class": "MARKED",
       "confidence": 0.94
     },
     {
-      "crop_id": "ficha_001_q01_B",
+      "crop_id": "ficha_001_q_01_B",
       "predicted_class": "EMPTY",
       "confidence": 0.91
     }

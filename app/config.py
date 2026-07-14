@@ -90,10 +90,10 @@ MARKER_MAX_AREA_RATIO = 0.05
 
 # Tolerancia de "cuadratura": ancho/alto del contorno candidato debe
 # estar entre [1 - tol, 1 + tol].
-MARKER_ASPECT_RATIO_TOLERANCE = 0.25
+MARKER_ASPECT_RATIO_TOLERANCE = 0.35 # Antes de tuneo karlo era 0.25 
 
 # Tolerancia del approxPolyDP para aceptar el contorno como polígono de 4 lados.
-MARKER_POLY_APPROX_EPSILON_RATIO = 0.03
+MARKER_POLY_APPROX_EPSILON_RATIO = 0.045 # Antes de tuneo karlo era 0.03
 
 # Marcador especial que define la orientación (debe tener un cuadrado
 # claro/hueco en su interior). Debe coincidir con "orientation_marker"
@@ -102,7 +102,7 @@ ORIENTATION_MARKER_POSITION = "top_right"
 
 # Umbral binario para separar zonas oscuras (marcador) de zonas claras (hoja).
 # Se usa como fallback si Otsu no converge bien.
-MARKER_BINARY_THRESHOLD_FALLBACK = 100
+MARKER_BINARY_THRESHOLD_FALLBACK = 135 # Antes de tuneo karlo era 100
 
 # issue_codes específicos de Fase 1 (ya están cubiertos por ISSUE_CODES,
 # se listan aparte para referencia rápida desde core_vision.py)
@@ -146,15 +146,15 @@ WARP_FAILED_ISSUE_CODE = "TEMPLATE_MISMATCH"
 
 # M1: Nitidez — varianza del Laplaciano sobre la imagen canónica en
 # escala de grises. Por debajo de este valor se considera borrosa.
-QUALITY_MIN_SHARPNESS = 75.0
+QUALITY_MIN_SHARPNESS = 45.0 # Antes 75.0
 
 # M2: Brillo — promedio de intensidad de píxeles (0-255).
 QUALITY_MIN_BRIGHTNESS = 60
-QUALITY_MAX_BRIGHTNESS = 220
+QUALITY_MAX_BRIGHTNESS = 240 # Antes 220
 
 # M3: Zonas negras/vacías — un píxel se considera "oscuro" por debajo
 # de este valor de gris, y se mide qué % de la imagen canónica ocupa.
-QUALITY_DARK_PIXEL_THRESHOLD = 60
+QUALITY_DARK_PIXEL_THRESHOLD = 150 # Antes 60, luego 90 pero tambien fallaba ojo con 90 paso OK 22.jpg 
 QUALITY_MAX_DARK_AREA_RATIO = 0.15
 
 # M4: Verificación de marcadores en posiciones esperadas.
@@ -163,7 +163,7 @@ QUALITY_MAX_DARK_AREA_RATIO = 0.15
 QUALITY_MARKER_ROI_MARGIN = 20
 # % mínimo de píxeles oscuros dentro de la ROI para considerar que el
 # marcador efectivamente está ahí (y no se perdió/deformó en el warp).
-QUALITY_MIN_MARKER_DARK_RATIO = 0.25
+QUALITY_MIN_MARKER_DARK_RATIO = 0.15 # Antes 0.25
 # Tolerancia (px) entre el centroide oscuro encontrado y el centro
 # oficial esperado (marcadores_centros.json).
 QUALITY_MARKER_POSITION_TOLERANCE_PX = 15

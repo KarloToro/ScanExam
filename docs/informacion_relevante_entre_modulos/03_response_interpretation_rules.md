@@ -49,7 +49,7 @@ Ejemplo:
 
 ```json
 {
-  "crop_id": "ficha_001_q01_A",
+  "crop_id": "ficha_001_q_01_A",
   "predicted_class": "MARKED",
   "confidence": 0.94
 }
@@ -814,10 +814,6 @@ Ejemplo:
     "value": "20240001",
     "confidence": 0.97
   },
-  "exam_type": {
-    "value": "A",
-    "confidence": 0.99
-  },
   "questions": [
     {
       "question_id": 1,
@@ -903,7 +899,6 @@ Ejemplo completo simplificado:
   },
   "student_name": "Pedro Sota",
   "email": "pedro.sota@gmail.com",
-  "exam_type": "A",
   "score": 2,
   "max_score": 4,
   "percentage": 50,
