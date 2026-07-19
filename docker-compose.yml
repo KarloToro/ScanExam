@@ -65,5 +65,49 @@ services:
       - ./:/workspace
     command: ["python", "-m", "app.train_classifier", "--epochs", "30"]
 
+  # --------------------------------------------------------------------------
+  # scanexam-app: API HTTP del pipeline (P3). Servicio de larga vida que expone
+  # las fases (build-batch, run-vision, crops-classify, score) para que n8n y el
+  # panel P4 las invoquen por HTTP. Comparte la red con n8n (host: scanexam-app).
+  # --------------------------------------------------------------------------
+  scanexam-app:
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+    image: scanexam-app:latest
+    container_name: scanexam-app
+    environment:
+      PYTHONPATH: /workspace:/workspace/app
+    volumes:
+      - ./:/workspace
+    ports:
+      - "8000:8000"
+    command: ["python", "-m", "app.api"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  # --------------------------------------------------------------------------
+  # n8n: orquestador del pipeline (P3). Invoca la API de scanexam-app por HTTP
+  # (nodos HTTP Request) y enruta por estado de ficha (OK/OBSERVED/ERROR).
+  # --------------------------------------------------------------------------
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: scanexam-n8n
+    ports:
+      - "5678:5678"
+    environment:
+      # Permite iniciar sesión por http://localhost (sin TLS) en entorno local.
+      N8N_SECURE_COOKIE: "false"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      GENERIC_TIMEZONE: "America/Lima"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./:/workspace
+
 volumes:
   mlflow_data:
+  n8n_data:
