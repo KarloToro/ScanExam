@@ -1,6 +1,6 @@
 # ADR-0007: Cálculo del `confidence` por pregunta
 
-**Estado:** Propuesta
+**Estado:** Aceptada
 **Fecha:** 2026-07-19
 
 ## Contexto
@@ -10,7 +10,7 @@ incluye un campo `confidence` por pregunta (con valores de ejemplo 0.94, 0.88, 0
 `null`) pero **no define cómo derivarlo** a partir de las confianzas por burbuja que
 entrega la CNN. El scoring necesita una regla determinista y única (regla 15).
 
-## Decisión (propuesta, pendiente de confirmación)
+## Decisión
 
 Agregar las confianzas por burbuja según el `mark_status`:
 
@@ -36,8 +36,8 @@ Los valores encajan con los ejemplos del documento de reglas.
 - Coherente con los ejemplos existentes del contrato.
 
 **Negativas / trade-offs**
-- Es una interpretación nuestra de un punto que el contrato dejó abierto; debe
-  confirmarse con el equipo antes de pasar el ADR a **Aceptada**.
+- Es una interpretación nuestra de un punto que el contrato dejó abierto; se comunicó
+  y confirmó con el equipo antes de adoptarla.
 
 ## Alternativas consideradas
 

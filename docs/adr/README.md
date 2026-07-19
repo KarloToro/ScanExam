@@ -30,7 +30,7 @@ Fecha: AAAA-MM-DD
 | [0004](0004-cli-por-fases-y-orquestacion-n8n.md) | CLI por fases de P3 y orquestación por n8n | Aceptada |
 | [0005](0005-panel-docente-stub-minimo.md) | Panel docente (P4) como stub mínimo | Aceptada |
 | [0006](0006-contenerizacion-y-entorno.md) | Contenerización y decisiones de entorno | Aceptada |
-| [0007](0007-confidence-por-pregunta.md) | Cálculo del `confidence` por pregunta | Propuesta |
+| [0007](0007-confidence-por-pregunta.md) | Cálculo del `confidence` por pregunta | Aceptada |
 
 > Nota: la decisión de alcance sobre variantes A/B vive en
 > [`../decision_not_support_for_A_B_exams.md`](../decision_not_support_for_A_B_exams.md)
