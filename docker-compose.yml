@@ -1,0 +1,69 @@
+# ScanExam AI — orquestación local (Ubuntu VM / Docker).
+#
+# Estado actual (paso 0 - desbloqueo del modelo):
+#   - mlflow  : servidor de tracking + Model Registry (versiona el clasificador).
+#   - trainer : entrena el clasificador de burbujas y registra el modelo champion.
+#
+# Pendiente (se agrega en fases posteriores de la integración):
+#   - n8n         : orquestador del pipeline (P3).
+#   - scanexam-app: API/pipeline de procesamiento de lotes (P3).
+#   - panel       : stub Flask del panel docente (P4, lo continúa la compañera).
+
+name: scanexam
+
+services:
+  # --------------------------------------------------------------------------
+  # MLflow: tracking de experimentos + Model Registry.
+  # Corre desde nuestra propia imagen de app (ya trae mlflow instalado),
+  # así no dependemos de descargar una imagen externa.
+  # --------------------------------------------------------------------------
+  mlflow:
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+    image: scanexam-app:latest
+    container_name: scanexam-mlflow
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts
+      --serve-artifacts
+      --allowed-hosts "mlflow:5000,localhost:5000,127.0.0.1:5000"
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_data:/mlflow
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # --------------------------------------------------------------------------
+  # Trainer: entrena el clasificador de burbujas (P1) y lo registra como
+  # `bubble_classifier@champion`. Exporta el .pt a ./models del host vía el
+  # volumen del repo. Es un job de un solo uso (no queda levantado).
+  # --------------------------------------------------------------------------
+  trainer:
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+    image: scanexam-app:latest
+    container_name: scanexam-trainer
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      # core_classifier.py (P1) hace `import config`, que solo resuelve con app/
+      # en el path. Se añade aquí (no invasivo) en vez de tocar el archivo de P1.
+      PYTHONPATH: /workspace:/workspace/app
+    volumes:
+      - ./:/workspace
+    command: ["python", "-m", "app.train_classifier", "--epochs", "30"]
+
+volumes:
+  mlflow_data:
