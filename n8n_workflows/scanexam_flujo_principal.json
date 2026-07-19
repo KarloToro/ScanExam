@@ -102,8 +102,141 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
+        1300,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "resultados.results",
+        "options": {}
+      },
+      "id": "a0000000-0000-0000-0000-000000000007",
+      "name": "Separar fichas",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
         1280,
-        300
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.processing_status }}",
+                    "rightValue": "OK",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "OK -> publicar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.processing_status }}",
+                    "rightValue": "OBSERVED",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "OBSERVED -> revision docente"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.processing_status }}",
+                    "rightValue": "ERROR",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ERROR -> incidencia tecnica"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a0000000-0000-0000-0000-000000000008",
+      "name": "Enrutar por estado",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        1500,
+        460
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a0000000-0000-0000-0000-000000000009",
+      "name": "Publicar (OK)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1740,
+        340
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a0000000-0000-0000-0000-00000000000a",
+      "name": "Revision docente (OBSERVED)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1740,
+        460
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a0000000-0000-0000-0000-00000000000b",
+      "name": "Incidencia tecnica (ERROR)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1740,
+        580
       ]
     }
   ],
@@ -157,6 +290,47 @@
         [
           {
             "node": "Responder resultados",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Separar fichas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar fichas": {
+      "main": [
+        [
+          {
+            "node": "Enrutar por estado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrutar por estado": {
+      "main": [
+        [
+          {
+            "node": "Publicar (OK)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Revision docente (OBSERVED)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Incidencia tecnica (ERROR)",
             "type": "main",
             "index": 0
           }
