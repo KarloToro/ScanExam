@@ -108,6 +108,26 @@ services:
       - n8n_data:/home/node/.n8n
       - ./:/workspace
 
+  # --------------------------------------------------------------------------
+  # panel: STUB del panel docente (P4). Sube ZIP -> valida (fail-fast) ->
+  # dispara el pipeline por el webhook de n8n -> muestra/descarga resultados.
+  # Es un punto de partida para la responsable de P4 (ver TODOs en el código).
+  # --------------------------------------------------------------------------
+  panel:
+    image: scanexam-app:latest
+    container_name: scanexam-panel
+    depends_on:
+      - n8n
+      - scanexam-app
+    environment:
+      PYTHONPATH: /workspace:/workspace/app
+      N8N_WEBHOOK_URL: "http://n8n:5678/webhook/scanexam"
+    volumes:
+      - ./:/workspace
+    ports:
+      - "5001:5000"
+    command: ["python", "-m", "panel_docente.main"]
+
 volumes:
   mlflow_data:
   n8n_data:

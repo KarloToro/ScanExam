@@ -52,3 +52,5 @@ __pycache__/
 repomix-output.xml
 repomix_log.txt
 estructura*.txt
+# Subidas del panel (P4)
+uploads/
