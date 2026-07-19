@@ -36,6 +36,90 @@ app = Flask(__name__)
 DEFAULT_BATCHES_ROOT = core_pipeline.DEFAULT_BATCHES_ROOT
 
 
+# ---------------------------------------------------------------------------
+# Documentación OpenAPI + Swagger UI (sin dependencias extra: Swagger UI se
+# carga por CDN desde el navegador). Disponible en /docs.
+# ---------------------------------------------------------------------------
+
+def _batch_body(*, with_source: bool) -> dict:
+    props = {"batch_id": {"type": "string", "example": "BATCH-001"}}
+    required = ["batch_id"]
+    if with_source:
+        props["source"] = {"type": "string", "example": "data/lotes_prueba/real",
+                           "description": "ZIP ya extraído con Fichas/, Estudiantes/, Respuestas/."}
+        required = ["source", "batch_id"]
+    props["batches_root"] = {"type": "string", "default": "batches"}
+    return {"required": True, "content": {"application/json": {"schema": {
+        "type": "object", "required": required, "properties": props}}}}
+
+
+_OK_RESPONSE = {"200": {"description": "OK",
+                "content": {"application/json": {"schema": {"type": "object"}}}}}
+
+OPENAPI_SPEC = {
+    "openapi": "3.0.3",
+    "info": {
+        "title": "ScanExam AI — Pipeline API (P3)",
+        "version": "1.0.0",
+        "description": "Fases del pipeline de corrección expuestas por HTTP. "
+                       "Las consume n8n (orquestación) y el panel docente P4.",
+    },
+    "servers": [{"url": "http://localhost:8000"}],
+    "tags": [{"name": "pipeline", "description": "Fases del procesamiento de lotes"},
+             {"name": "sistema"}],
+    "paths": {
+        "/health": {"get": {"tags": ["sistema"], "summary": "Liveness",
+                            "responses": _OK_RESPONSE}},
+        "/pipeline/build-batch": {"post": {"tags": ["pipeline"],
+            "summary": "Crea la estructura del BATCH desde un ZIP extraído",
+            "requestBody": _batch_body(with_source=True), "responses": _OK_RESPONSE}},
+        "/pipeline/run-vision": {"post": {"tags": ["pipeline"],
+            "summary": "Fase P2: canoniza fichas y genera vision_manifest.json",
+            "requestBody": _batch_body(with_source=False), "responses": _OK_RESPONSE}},
+        "/pipeline/crops-classify": {"post": {"tags": ["pipeline"],
+            "summary": "Fase P3: recorta burbujas y clasifica con la CNN",
+            "requestBody": _batch_body(with_source=False), "responses": _OK_RESPONSE}},
+        "/pipeline/score": {"post": {"tags": ["pipeline"],
+            "summary": "Fase P3: identidad + reglas + calificación -> resultados.json",
+            "requestBody": _batch_body(with_source=False), "responses": _OK_RESPONSE}},
+        "/pipeline/run-all": {"post": {"tags": ["pipeline"],
+            "summary": "Corre las 4 fases en secuencia (conveniencia para demo)",
+            "requestBody": _batch_body(with_source=True), "responses": _OK_RESPONSE}},
+    },
+}
+
+_SWAGGER_HTML = """<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ScanExam API — Docs</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    window.ui = SwaggerUIBundle({
+      url: '/openapi.json',
+      dom_id: '#swagger-ui',
+      deepLinking: true,
+    });
+  </script>
+</body>
+</html>"""
+
+
+@app.get("/openapi.json")
+def openapi_spec():
+    return jsonify(OPENAPI_SPEC)
+
+
+@app.get("/docs")
+def docs():
+    return _SWAGGER_HTML
+
+
 def _body() -> dict:
     return request.get_json(silent=True) or {}
 

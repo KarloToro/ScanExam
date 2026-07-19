@@ -52,6 +52,20 @@ def test_missing_required_field_returns_400(client):
     assert resp.get_json()["ok"] is False
 
 
+def test_openapi_spec_lists_pipeline_paths(client):
+    body = client.get("/openapi.json").get_json()
+    assert body["openapi"].startswith("3.")
+    for path in ("/pipeline/build-batch", "/pipeline/run-vision",
+                 "/pipeline/crops-classify", "/pipeline/score"):
+        assert path in body["paths"]
+
+
+def test_docs_serves_swagger_ui(client):
+    resp = client.get("/docs")
+    assert resp.status_code == 200
+    assert b"swagger-ui" in resp.data
+
+
 def test_score_summary_by_status(client, monkeypatch):
     def fake_run_score(batch_id, batches_root):
         return {"batch_id": batch_id, "results": [
