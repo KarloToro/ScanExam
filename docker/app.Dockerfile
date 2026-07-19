@@ -18,6 +18,11 @@ WORKDIR /workspace
 COPY docker/requirements-app.txt /tmp/requirements-app.txt
 RUN pip install --upgrade pip && pip install -r /tmp/requirements-app.txt
 
+# Herramientas de dev/test en una capa posterior y separada: agregarlas NO
+# invalida la capa (pesada) de torch de arriba.
+COPY docker/requirements-dev.txt /tmp/requirements-dev.txt
+RUN pip install -r /tmp/requirements-dev.txt
+
 # El código se monta como volumen en desarrollo (ver docker-compose.yml),
 # por eso no se hace COPY del proyecto aquí: mantiene la imagen liviana y
 # permite iterar sin reconstruir.
