@@ -1,0 +1,133 @@
+# ScanExam AI — orquestación local (Ubuntu VM / Docker).
+#
+# Estado actual (paso 0 - desbloqueo del modelo):
+#   - mlflow  : servidor de tracking + Model Registry (versiona el clasificador).
+#   - trainer : entrena el clasificador de burbujas y registra el modelo champion.
+#
+# Pendiente (se agrega en fases posteriores de la integración):
+#   - n8n         : orquestador del pipeline (P3).
+#   - scanexam-app: API/pipeline de procesamiento de lotes (P3).
+#   - panel       : stub Flask del panel docente (P4, lo continúa la compañera).
+
+name: scanexam
+
+services:
+  # --------------------------------------------------------------------------
+  # MLflow: tracking de experimentos + Model Registry.
+  # Corre desde nuestra propia imagen de app (ya trae mlflow instalado),
+  # así no dependemos de descargar una imagen externa.
+  # --------------------------------------------------------------------------
+  mlflow:
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+    image: scanexam-app:latest
+    container_name: scanexam-mlflow
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts
+      --serve-artifacts
+      --allowed-hosts "mlflow:5000,localhost:5000,127.0.0.1:5000"
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_data:/mlflow
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # --------------------------------------------------------------------------
+  # Trainer: entrena el clasificador de burbujas (P1) y lo registra como
+  # `bubble_classifier@champion`. Exporta el .pt a ./models del host vía el
+  # volumen del repo. Es un job de un solo uso (no queda levantado).
+  # --------------------------------------------------------------------------
+  trainer:
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+    image: scanexam-app:latest
+    container_name: scanexam-trainer
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      # core_classifier.py (P1) hace `import config`, que solo resuelve con app/
+      # en el path. Se añade aquí (no invasivo) en vez de tocar el archivo de P1.
+      PYTHONPATH: /workspace:/workspace/app
+    volumes:
+      - ./:/workspace
+    command: ["python", "-m", "app.train_classifier", "--epochs", "30"]
+
+  # --------------------------------------------------------------------------
+  # scanexam-app: API HTTP del pipeline (P3). Servicio de larga vida que expone
+  # las fases (build-batch, run-vision, crops-classify, score) para que n8n y el
+  # panel P4 las invoquen por HTTP. Comparte la red con n8n (host: scanexam-app).
+  # --------------------------------------------------------------------------
+  scanexam-app:
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+    image: scanexam-app:latest
+    container_name: scanexam-app
+    environment:
+      PYTHONPATH: /workspace:/workspace/app
+    volumes:
+      - ./:/workspace
+    ports:
+      - "8000:8000"
+    command: ["python", "-m", "app.api"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  # --------------------------------------------------------------------------
+  # n8n: orquestador del pipeline (P3). Invoca la API de scanexam-app por HTTP
+  # (nodos HTTP Request) y enruta por estado de ficha (OK/OBSERVED/ERROR).
+  # --------------------------------------------------------------------------
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: scanexam-n8n
+    ports:
+      - "5678:5678"
+    environment:
+      # Permite iniciar sesión por http://localhost (sin TLS) en entorno local.
+      N8N_SECURE_COOKIE: "false"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      GENERIC_TIMEZONE: "America/Lima"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./:/workspace
+
+  # --------------------------------------------------------------------------
+  # panel: STUB del panel docente (P4). Sube ZIP -> valida (fail-fast) ->
+  # dispara el pipeline por el webhook de n8n -> muestra/descarga resultados.
+  # Es un punto de partida para la responsable de P4 (ver TODOs en el código).
+  # --------------------------------------------------------------------------
+  panel:
+    image: scanexam-app:latest
+    container_name: scanexam-panel
+    depends_on:
+      - n8n
+      - scanexam-app
+    environment:
+      PYTHONPATH: /workspace:/workspace/app
+      N8N_WEBHOOK_URL: "http://n8n:5678/webhook/scanexam"
+    volumes:
+      - ./:/workspace
+    ports:
+      - "5001:5000"
+    command: ["python", "-m", "panel_docente.main"]
+
+volumes:
+  mlflow_data:
+  n8n_data:

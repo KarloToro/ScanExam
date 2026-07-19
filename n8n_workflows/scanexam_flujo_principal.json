@@ -1,0 +1,345 @@
+{
+  "id": "scanexamMain0001",
+  "name": "ScanExam - Flujo principal",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "scanexam",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a0000000-0000-0000-0000-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        180,
+        300
+      ],
+      "webhookId": "scanexam-webhook"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://scanexam-app:8000/pipeline/build-batch",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"source\": \"{{ $('Webhook').item.json.body.source }}\", \"batch_id\": \"{{ $('Webhook').item.json.body.batch_id }}\" }",
+        "options": {}
+      },
+      "id": "a0000000-0000-0000-0000-000000000002",
+      "name": "P3: build-batch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://scanexam-app:8000/pipeline/run-vision",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"batch_id\": \"{{ $('Webhook').item.json.body.batch_id }}\" }",
+        "options": {}
+      },
+      "id": "a0000000-0000-0000-0000-000000000003",
+      "name": "P2: run-vision",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://scanexam-app:8000/pipeline/crops-classify",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"batch_id\": \"{{ $('Webhook').item.json.body.batch_id }}\" }",
+        "options": {}
+      },
+      "id": "a0000000-0000-0000-0000-000000000004",
+      "name": "P3: crops-classify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        840,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://scanexam-app:8000/pipeline/score",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"batch_id\": \"{{ $('Webhook').item.json.body.batch_id }}\" }",
+        "options": {}
+      },
+      "id": "a0000000-0000-0000-0000-000000000005",
+      "name": "P3: score",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1060,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "a0000000-0000-0000-0000-000000000006",
+      "name": "Responder resultados",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1300,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "resultados.results",
+        "options": {}
+      },
+      "id": "a0000000-0000-0000-0000-000000000007",
+      "name": "Separar fichas",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1280,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.processing_status }}",
+                    "rightValue": "OK",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "OK -> publicar"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.processing_status }}",
+                    "rightValue": "OBSERVED",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "OBSERVED -> revision docente"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.processing_status }}",
+                    "rightValue": "ERROR",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ERROR -> incidencia tecnica"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a0000000-0000-0000-0000-000000000008",
+      "name": "Enrutar por estado",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        1500,
+        460
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a0000000-0000-0000-0000-000000000009",
+      "name": "Publicar (OK)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1740,
+        340
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a0000000-0000-0000-0000-00000000000a",
+      "name": "Revision docente (OBSERVED)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1740,
+        460
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a0000000-0000-0000-0000-00000000000b",
+      "name": "Incidencia tecnica (ERROR)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1740,
+        580
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "P3: build-batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "P3: build-batch": {
+      "main": [
+        [
+          {
+            "node": "P2: run-vision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "P2: run-vision": {
+      "main": [
+        [
+          {
+            "node": "P3: crops-classify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "P3: crops-classify": {
+      "main": [
+        [
+          {
+            "node": "P3: score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "P3: score": {
+      "main": [
+        [
+          {
+            "node": "Responder resultados",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Separar fichas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar fichas": {
+      "main": [
+        [
+          {
+            "node": "Enrutar por estado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrutar por estado": {
+      "main": [
+        [
+          {
+            "node": "Publicar (OK)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Revision docente (OBSERVED)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Incidencia tecnica (ERROR)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}
