@@ -15,7 +15,7 @@ import cv2
 import numpy as np
 import pytest
 
-from app.core_pipeline import build_batch, run_score, run_crops_classify
+from app.core_pipeline import build_batch, run_score, run_crops_classify, run_vision
 from app.identity import reading_order_columns
 
 _MODEL = Path("models/bubble_classifier_v1.pt")
@@ -133,6 +133,38 @@ def test_score_error_ficha_from_vision(tmp_path):
     assert result["processing_status"] == "ERROR"
     assert result["issue_code"] == "MARKERS_NOT_FOUND"
     assert result["publishable"] is False
+
+
+# --------------------------------- run_vision ----------------------------------
+
+def test_run_vision_delegates_input_to_process_batch(tmp_path, monkeypatch):
+    """run_vision reúne input/ y delega en P2 (process_batch) con output_root=work/."""
+    import app.core_pipeline as pipeline
+
+    bdir = tmp_path / "BATCH-001"
+    input_dir = bdir / "input"
+    input_dir.mkdir(parents=True)
+    # Solo se toman formatos soportados; un .txt debe ignorarse.
+    for name in ("ficha_002.jpg", "ficha_001.png", "notas.txt"):
+        (input_dir / name).write_bytes(b"x")
+
+    captured = {}
+
+    def fake_process_batch(paths, output_root, template_id=None):
+        captured["paths"] = [Path(p).name for p in paths]
+        captured["output_root"] = Path(output_root)
+        Path(output_root).mkdir(parents=True, exist_ok=True)
+        (Path(output_root) / "vision_manifest.json").write_text("[]", encoding="utf-8")
+        return []
+
+    monkeypatch.setattr(pipeline.vision_module, "process_batch", fake_process_batch)
+
+    manifest_path = run_vision("BATCH-001", batches_root=tmp_path)
+
+    assert captured["paths"] == ["ficha_001.png", "ficha_002.jpg"]  # ordenado, sin .txt
+    assert captured["output_root"] == bdir / "work"
+    assert manifest_path == bdir / "work" / "vision_manifest.json"
+    assert manifest_path.exists()
 
 
 # ------------------------- run_crops_classify (con modelo) ---------------------

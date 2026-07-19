@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from app import config
+from app import core_vision as vision_module
 from app import crops as crops_module
 from app import identity as identity_module
 from app import scoring_engine
@@ -103,6 +104,37 @@ def build_batch(
         json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
     )
     return bdir
+
+
+# ---------------------------------------------------------------------------
+# Fase run-vision (envoltura de integración de P2)
+# ---------------------------------------------------------------------------
+
+def run_vision(
+    batch_id: str,
+    batches_root: str | Path = DEFAULT_BATCHES_ROOT,
+    template_id: str = config.TEMPLATE_ID,
+) -> Path:
+    """
+    Fase de visión (P2) por lote. Es glue de integración: reúne las fotos de
+    `input/` y delega en `core_vision.process_batch`, que canoniza cada ficha y
+    escribe `work/vision_manifest.json` + `work/normalized/*.png`.
+
+    No reimplementa nada de visión (responsabilidad exclusiva de P2); solo le da
+    a P2 el contrato por lote que su CLI de depuración no expone. La
+    paralelización de esta fase se difiere a una v2 (ver ADR-0002): para lotes
+    pequeños el costo secuencial es despreciable y así respetamos el entrypoint
+    oficial de P2 (`process_batch`, su Decisión 3.1).
+    """
+    bdir = batch_dir(batch_id, batches_root)
+    input_dir = bdir / "input"
+    work = _work_dir(bdir)
+    images = sorted(
+        p for p in input_dir.iterdir()
+        if p.suffix.lower() in config.SUPPORTED_INPUT_FORMATS
+    )
+    vision_module.process_batch(images, output_root=work, template_id=template_id)
+    return work / "vision_manifest.json"
 
 
 # ---------------------------------------------------------------------------
@@ -356,6 +388,10 @@ def _main() -> None:
     p_build.add_argument("--batch-id", required=True)
     p_build.add_argument("--batches-root", default=DEFAULT_BATCHES_ROOT)
 
+    p_vision = sub.add_parser("run-vision", help="Corre P2 (visión) sobre input/ del lote -> vision_manifest.json.")
+    p_vision.add_argument("--batch", required=True)
+    p_vision.add_argument("--batches-root", default=DEFAULT_BATCHES_ROOT)
+
     p_cc = sub.add_parser("crops-classify", help="Genera crops y clasifica burbujas.")
     p_cc.add_argument("--batch", required=True)
     p_cc.add_argument("--batches-root", default=DEFAULT_BATCHES_ROOT)
@@ -368,6 +404,9 @@ def _main() -> None:
     if args.command == "build-batch":
         path = build_batch(args.source, args.batch_id, args.batches_root)
         print(f"BATCH creado en {path}")
+    elif args.command == "run-vision":
+        path = run_vision(args.batch, args.batches_root)
+        print(f"vision_manifest generado en {path}")
     elif args.command == "crops-classify":
         result = run_crops_classify(args.batch, args.batches_root)
         print(f"Clasificadas {len(result['fichas'])} fichas.")
