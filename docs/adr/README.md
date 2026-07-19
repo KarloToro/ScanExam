@@ -31,6 +31,7 @@ Fecha: AAAA-MM-DD
 | [0005](0005-panel-docente-stub-minimo.md) | Panel docente (P4) como stub mínimo | Aceptada |
 | [0006](0006-contenerizacion-y-entorno.md) | Contenerización y decisiones de entorno | Aceptada |
 | [0007](0007-confidence-por-pregunta.md) | Cálculo del `confidence` por pregunta | Aceptada |
+| [0008](0008-reconstruccion-codigo-estudiante.md) | Reconstrucción del código de estudiante e identificación | Aceptada |
 
 > Nota: la decisión de alcance sobre variantes A/B vive en
 > [`../decision_not_support_for_A_B_exams.md`](../decision_not_support_for_A_B_exams.md)
