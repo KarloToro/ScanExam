@@ -1,13 +1,13 @@
 # ScanExam AI — orquestación local (Ubuntu VM / Docker).
 #
-# Estado actual (paso 0 - desbloqueo del modelo):
-#   - mlflow  : servidor de tracking + Model Registry (versiona el clasificador).
-#   - trainer : entrena el clasificador de burbujas y registra el modelo champion.
-#
-# Pendiente (se agrega en fases posteriores de la integración):
-#   - n8n         : orquestador del pipeline (P3).
-#   - scanexam-app: API/pipeline de procesamiento de lotes (P3).
-#   - panel       : stub Flask del panel docente (P4, lo continúa la compañera).
+# Servicios:
+#   - mlflow       : tracking + Model Registry (clasificador de burbujas).
+#   - trainer      : job de un solo uso que entrena y registra el modelo champion.
+#   - scanexam-app : API HTTP del pipeline (P3).
+#   - n8n          : orquestador del pipeline (P3).
+#   - mongo        : base de datos del panel (usuarios / auth).
+#   - panel-api    : API Go del panel docente (P4).
+#   - panel-web    : frontend Nuxt del panel docente (P4).
 
 name: scanexam
 
@@ -109,25 +109,74 @@ services:
       - ./:/workspace
 
   # --------------------------------------------------------------------------
-  # panel: STUB del panel docente (P4). Sube ZIP -> valida (fail-fast) ->
-  # dispara el pipeline por el webhook de n8n -> muestra/descarga resultados.
-  # Es un punto de partida para la responsable de P4 (ver TODOs en el código).
+  # mongo: base de datos del panel (usuarios / auth).
   # --------------------------------------------------------------------------
-  panel:
-    image: scanexam-app:latest
-    container_name: scanexam-panel
+  mongo:
+    image: mongo:7
+    container_name: scanexam-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # --------------------------------------------------------------------------
+  # panel-api: API Go del panel docente (P4). Autenticación, usuarios y
+  # subida de paquetes de examen; dispara el pipeline vía webhook de n8n.
+  # Comparte /workspace con n8n y scanexam-app para que vean los uploads.
+  # --------------------------------------------------------------------------
+  panel-api:
+    build:
+      context: ./scan-exam-panel/backend
+      dockerfile: Dockerfile
+    image: scanexam-panel-api:latest
+    container_name: scanexam-panel-api
     depends_on:
-      - n8n
-      - scanexam-app
+      mongo:
+        condition: service_healthy
+      n8n:
+        condition: service_started
+      scanexam-app:
+        condition: service_healthy
     environment:
-      PYTHONPATH: /workspace:/workspace/app
+      PORT: "8080"
+      JWT_SECRET: "change-me-in-production"
+      JWT_EXPIRY: "24h"
+      ADMIN_PASSWORD: "admin123"
+      ADMIN_EMAIL: "admin@localhost"
+      SCAN_EXAM_DB_HOST: mongo
+      SCAN_EXAM_DB_PORT: "27017"
+      SCANEXAM_WORKSPACE: /workspace
+      SCANEXAM_UPLOADS_DIR: uploads
       N8N_WEBHOOK_URL: "http://n8n:5678/webhook/scanexam"
     volumes:
       - ./:/workspace
     ports:
-      - "5001:5000"
-    command: ["python", "-m", "panel_docente.main"]
+      - "8080:8080"
+
+  # --------------------------------------------------------------------------
+  # panel-web: frontend Nuxt del panel docente (P4).
+  # NUXT_PUBLIC_API_BASE_URL apunta al host (navegador -> localhost:8080).
+  # --------------------------------------------------------------------------
+  panel-web:
+    build:
+      context: ./scan-exam-panel/frontend
+      dockerfile: Dockerfile
+    image: scanexam-panel-web:latest
+    container_name: scanexam-panel-web
+    depends_on:
+      - panel-api
+    environment:
+      NUXT_PUBLIC_API_BASE_URL: http://localhost:8080
+    ports:
+      - "3000:3000"
 
 volumes:
   mlflow_data:
   n8n_data:
+  mongo_data:

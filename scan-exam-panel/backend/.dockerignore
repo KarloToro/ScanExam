@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+*.md
+.tmp
+tmp/
+main
+air
+.air.toml
+.cursor
+.vscode
+.idea
+**/skills-lock.json

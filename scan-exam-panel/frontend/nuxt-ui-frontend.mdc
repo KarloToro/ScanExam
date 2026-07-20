@@ -1,0 +1,42 @@
+---
+description: Use Nuxt UI for the project's frontend
+globs: **/*.vue
+alwaysApply: false
+---
+
+# Frontend with Nuxt UI
+
+This project uses [Nuxt UI](https://ui.nuxt.com) as the frontend component library.
+
+## Required stack
+
+The frontend must use **exclusively**:
+
+- **Tailwind CSS v4** for styling (do not use other CSS frameworks or custom CSS/SCSS unless justified).
+- **Nuxt UI** for components.
+
+## Main rule
+
+Before creating any new component, check whether an equivalent one already exists in Nuxt UI:
+
+1. Look up the component in the Nuxt UI docs/API (e.g. `UButton`, `UCard`, `UModal`, `UForm`, `UTable`, `UInput`, etc.).
+2. If a Nuxt UI component covers the need, **use it** instead of creating your own.
+3. Only create a custom component if there is **no** suitable one in Nuxt UI.
+
+## Exception
+
+If the user **explicitly** asks you to create a component, create it even if a similar one exists in Nuxt UI.
+
+## Example
+
+```vue
+<!-- ❌ AVOID: reimplementing something that already exists in Nuxt UI -->
+<template>
+  <button class="rounded bg-primary px-4 py-2 text-white">Save</button>
+</template>
+
+<!-- ✅ CORRECT: use the Nuxt UI component -->
+<template>
+  <UButton color="primary">Save</UButton>
+</template>
+```
