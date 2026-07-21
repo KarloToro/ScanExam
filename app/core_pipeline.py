@@ -38,8 +38,8 @@ from app.template_loader import load_template
 DEFAULT_BATCHES_ROOT = "batches"
 
 # Encabezados aceptados en Respuestas.csv (detección flexible).
-_QUESTION_HEADERS = ("pregunta", "numero", "nro", "n", "question", "id", "question_id")
-_CORRECT_HEADERS = ("clave", "respuesta", "correcta", "respuesta_correcta", "correct", "correct_answer", "answer")
+_QUESTION_HEADERS = ("pregunta", "numero", "nro", "n", "question", "id", "question_id", "número_pregunta")
+_CORRECT_HEADERS = ("clave","clave_correcta", "respuesta", "correcta", "respuesta_correcta", "correct", "correct_answer", "answer")
 _POINTS_HEADERS = ("puntaje", "puntos", "points", "score", "valor", "peso")
 
 
