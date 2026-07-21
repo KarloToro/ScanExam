@@ -1,0 +1,38 @@
+---
+description: Do not use emojis anywhere in the project
+alwaysApply: true
+---
+
+# No emojis
+
+Do not use emojis in this project.
+
+This applies to:
+
+- User-facing text (labels, buttons, toasts, errors, empty states).
+- Comments and documentation.
+- Commit messages and PR descriptions when working in this repo.
+
+Use plain text instead. Icons from Nuxt UI or Lucide (`i-lucide-*`) are fine when an icon is needed in the UI.
+
+## Example
+
+```vue
+<!-- AVOID: emoji in user-facing text -->
+<template>
+  <p>Subida completada 🎉</p>
+</template>
+
+<!-- CORRECT: plain text -->
+<template>
+  <p>Subida completada</p>
+</template>
+```
+
+```typescript
+// AVOID: emoji in comments
+// Done! ✅
+
+// CORRECT: plain text
+// Upload finished successfully
+```
