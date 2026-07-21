@@ -169,6 +169,7 @@ services:
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
       SMTP_FROM: "ScanExam <noreply@scanexam.local>"
+      FRONTEND_PUBLIC_URL: "http://localhost:3000"
     volumes:
       - ./:/workspace
     ports:

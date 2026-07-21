@@ -31,11 +31,12 @@ import (
 type Server struct {
 	port int
 	*http.Server
-	db          *mongo.Client
-	jwtService  *authapp.JWTService
-	userHandler *userhttp.UserHandler
-	authHandler *authhttp.AuthHandler
-	examHandler *examhttp.ExamHandler
+	db            *mongo.Client
+	jwtService    *authapp.JWTService
+	userHandler   *userhttp.UserHandler
+	authHandler   *authhttp.AuthHandler
+	examHandler   *examhttp.ExamHandler
+	resultHandler *examhttp.ResultHandler
 }
 
 func NewServer() *Server {
@@ -84,12 +85,19 @@ func NewServer() *Server {
 		notifier = notification.NewNoop()
 	}
 
-	uploadExam := examapp.NewUploadExamUseCase(batchWriter, pipelineClient, batchRepo, resultRepo, notifier)
+	frontendPublicURL := strings.TrimSpace(os.Getenv("FRONTEND_PUBLIC_URL"))
+	if frontendPublicURL == "" {
+		frontendPublicURL = "http://localhost:3000"
+	}
+
+	uploadExam := examapp.NewUploadExamUseCase(batchWriter, pipelineClient, batchRepo, resultRepo, notifier, frontendPublicURL)
+	lookupResult := examapp.NewLookupResultUseCase(resultRepo, batchRepo)
 
 	myServer.jwtService = jwtService
 	myServer.userHandler = userhttp.NewUserHandler(users)
 	myServer.authHandler = authhttp.NewAuthHandler(authapp.NewLoginUseCase(users, jwtService))
 	myServer.examHandler = examhttp.NewExamHandler(uploadExam)
+	myServer.resultHandler = examhttp.NewResultHandler(lookupResult)
 
 	myServer.seedAdmin(users)
 

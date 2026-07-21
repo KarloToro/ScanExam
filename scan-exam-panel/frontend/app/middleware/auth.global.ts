@@ -2,10 +2,10 @@ export default defineNuxtRouteMiddleware((to) => {
   const auth = useAuthStore()
   auth.ensureValidSession()
 
-  const isLoginRoute = to.path === '/login'
+  const isPublicRoute = to.path === '/login' || to.path === '/consulta' || to.path.startsWith('/consulta/')
 
-  if (isLoginRoute) {
-    if (auth.isAuthenticated) {
+  if (isPublicRoute) {
+    if (to.path === '/login' && auth.isAuthenticated) {
       return navigateTo('/')
     }
     return

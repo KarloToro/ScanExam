@@ -36,11 +36,12 @@ type UploadExamResponse struct {
 }
 
 type UploadExamUseCase struct {
-	storage  domain.BatchStorage
-	pipeline domain.PipelineClient
-	batches  domain.BatchRepository
-	results  domain.ResultRepository
-	notifier notification.Notifier
+	storage           domain.BatchStorage
+	pipeline          domain.PipelineClient
+	batches           domain.BatchRepository
+	results           domain.ResultRepository
+	notifier          notification.Notifier
+	frontendPublicURL string
 }
 
 func NewUploadExamUseCase(
@@ -49,13 +50,15 @@ func NewUploadExamUseCase(
 	batches domain.BatchRepository,
 	results domain.ResultRepository,
 	notifier notification.Notifier,
+	frontendPublicURL string,
 ) *UploadExamUseCase {
 	return &UploadExamUseCase{
-		storage:  storage,
-		pipeline: pipeline,
-		batches:  batches,
-		results:  results,
-		notifier: notifier,
+		storage:           storage,
+		pipeline:          pipeline,
+		batches:           batches,
+		results:           results,
+		notifier:          notifier,
+		frontendPublicURL: strings.TrimRight(strings.TrimSpace(frontendPublicURL), "/"),
 	}
 }
 
@@ -92,13 +95,17 @@ func (uc *UploadExamUseCase) Execute(ctx context.Context, req *UploadExamRequest
 
 	persisted := make([]*domain.Result, 0, len(payload.Bundle.Results))
 	for _, sheet := range payload.Bundle.Results {
-		persisted = append(persisted, sheetResultToDomain(sheet, batch.ID))
+		result, err := sheetResultToDomain(sheet, batch.ID)
+		if err != nil {
+			return nil, fmt.Errorf("%w: access key: %v", domain.ErrPersistFailed, err)
+		}
+		persisted = append(persisted, result)
 	}
 	if err := uc.results.CreateMany(ctx, persisted); err != nil {
 		return nil, fmt.Errorf("%w: results: %v", domain.ErrPersistFailed, err)
 	}
 
-	if err := uc.notifier.Send(ctx, gradeMessages(examName, persisted)); err != nil {
+	if err := uc.notifier.Send(ctx, gradeMessages(examName, uc.frontendPublicURL, persisted)); err != nil {
 		return nil, fmt.Errorf("%w: notify: %v", domain.ErrPersistFailed, err)
 	}
 
@@ -109,7 +116,7 @@ func (uc *UploadExamUseCase) Execute(ctx context.Context, req *UploadExamRequest
 	}, nil
 }
 
-func gradeMessages(examName string, results []*domain.Result) []notification.Message {
+func gradeMessages(examName, frontendPublicURL string, results []*domain.Result) []notification.Message {
 	messages := make([]notification.Message, 0)
 	for _, result := range results {
 		if !result.IsPublishableGrade() {
@@ -137,24 +144,35 @@ func gradeMessages(examName string, results []*domain.Result) []notification.Mes
 			studentName = *result.StudentName
 		}
 
+		consultaURL := fmt.Sprintf("%s/consulta/%s", frontendPublicURL, result.ID)
+
 		messages = append(messages, notification.Message{
 			To:      strings.TrimSpace(*result.Email),
 			Subject: fmt.Sprintf("Nota disponible: %s", examName),
 			Body: fmt.Sprintf(
-				"Hola %s,\n\nTu nota en \"%s\" es %.2f / %.2f (%.2f%%).\n",
+				"Hola %s,\n\nTu nota en \"%s\" es %.2f / %.2f (%.2f%%).\n\n"+
+					"Para ver el detalle de tus respuestas, ingresa a:\n%s\n\n"+
+					"Tu clave de acceso es:\n%s\n",
 				studentName, examName, score, maxScore, percentage,
+				consultaURL, result.AccessKey,
 			),
 		})
 	}
 	return messages
 }
 
-func sheetResultToDomain(sheet domain.PipelineSheetResult, batchRef string) *domain.Result {
+func sheetResultToDomain(sheet domain.PipelineSheetResult, batchRef string) (*domain.Result, error) {
 	answers := make([]domain.AnswerGrade, len(sheet.Answers))
 	copy(answers, sheet.Answers)
 
+	accessKey, err := domain.NewAccessKey()
+	if err != nil {
+		return nil, err
+	}
+
 	return &domain.Result{
 		BatchRef:          batchRef,
+		AccessKey:         accessKey,
 		File:              sheet.File,
 		ProcessingStatus:  sheet.ProcessingStatus,
 		QualityStatus:     sheet.QualityStatus,
@@ -168,7 +186,7 @@ func sheetResultToDomain(sheet domain.PipelineSheetResult, batchRef string) *dom
 		IssueCode:         sheet.IssueCode,
 		ProcessingMessage: sheet.ProcessingMessage,
 		Answers:           answers,
-	}
+	}, nil
 }
 
 func validateUpload(req *UploadExamRequest) error {

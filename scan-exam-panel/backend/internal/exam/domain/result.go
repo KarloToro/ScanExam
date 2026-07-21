@@ -19,6 +19,7 @@ type AnswerGrade struct {
 type Result struct {
 	ID                string
 	BatchRef          string
+	AccessKey         string
 	File              string
 	ProcessingStatus  string
 	QualityStatus     string
