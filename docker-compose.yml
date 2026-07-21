@@ -192,6 +192,22 @@ services:
     ports:
       - "3000:3000"
 
+  # --------------------------------------------------------------------------
+  # mongo-express: UI web para inspeccionar MongoDB (users/batches/results).
+  # Herramienta de desarrollo/demo — MongoDB no trae interfaz propia.
+  # --------------------------------------------------------------------------
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: scanexam-mongo-express
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      ME_CONFIG_MONGODB_URL: "mongodb://mongo:27017"
+      ME_CONFIG_BASICAUTH: "false"
+    ports:
+      - "8081:8081"
+
 volumes:
   mlflow_data:
   n8n_data:

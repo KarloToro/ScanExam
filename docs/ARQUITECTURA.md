@@ -56,6 +56,7 @@ se resuelven por nombre de servicio (p. ej. `http://scanexam-app:8000`).
 | 6 | **mailpit** | mailpit | 8025 (UI) / 1025 (SMTP) | Captura de correos de notificación (entorno local) | SMTP → bandeja web |
 | 7 | **mlflow** | MLflow | 5000 | Tracking de experimentos + Model Registry del clasificador | runs, métricas, modelo `@champion` |
 | 8 | **trainer** | Python | — | Job de un solo uso: entrena el clasificador y lo registra | dataset → `.pt` + registro MLflow |
+| + | **mongo-express** | mongo-express | 8081 | UI web opcional para inspeccionar MongoDB (dev/demo) | navegador → mongo |
 
 `scanexam-app`, `mlflow` y `trainer` comparten una imagen ([`docker/app.Dockerfile`](../docker/app.Dockerfile)).
 `panel-api` y `panel-web` tienen su propia imagen (Go, Nuxt), bajo `scan-exam-panel/`.
@@ -138,7 +139,9 @@ y respuestas → CSV), y **página pública de consulta** (`/consulta/[id]`).
 
 ## 6. Modelo de datos (MongoDB)
 
-Base del panel (`panel-api`). Tres colecciones:
+El panel (`panel-api`) usa dos bases: **`exams`** (colecciones `batches` y
+`results`) y **`users`** (colección `users`). Se pueden inspeccionar en el
+navegador con **mongo-express** (http://localhost:8081).
 
 ### `users`
 | Campo | Tipo | Nota |
@@ -240,6 +243,6 @@ Ver el runbook completo por terminal en [`docs/DEMO.md`](DEMO.md). Resumen:
 sudo systemctl start docker
 DOCKER_BUILDKIT=0 docker compose build
 docker compose up -d mlflow trainer                       # entrena el champion
-docker compose up -d scanexam-app n8n mongo mailpit panel-api panel-web
+docker compose up -d scanexam-app n8n mongo mailpit panel-api panel-web mongo-express
 # importar workflow n8n (ver DEMO.md) y abrir http://localhost:3000
 ```

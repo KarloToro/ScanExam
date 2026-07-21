@@ -62,9 +62,10 @@ docker compose run --rm -e SCANEXAM_DATA_DIR=data/_exp/f1_f9  trainer python -m 
 ## 3. Levantar la plataforma completa
 
 ```bash
-docker compose up -d scanexam-app n8n mongo mailpit panel-api panel-web
+docker compose up -d scanexam-app n8n mongo mailpit panel-api panel-web mongo-express
 docker compose ps                    # verificar Up/healthy
 ```
+> `mongo-express` es la UI web para ver las colecciones de MongoDB (http://localhost:8081).
 
 ## 4. Arreglar permisos de `uploads/` (workaround temporal — [ADR-0010](adr/0010-permisos-volumen-compartido.md))
 
@@ -107,6 +108,9 @@ docker restart scanexam-n8n          # imprescindible para registrar el webhook
 7. **http://localhost:8025** (mailpit) → verás el correo con la nota + clave de acceso.
 8. Abre el enlace de consulta del correo (`/consulta/<id>`) → el alumno ve su nota
    ingresando la **clave de acceso**.
+9. *(Opcional, para mostrar la persistencia)* **http://localhost:8081** (mongo-express)
+   → base **`exams`** → colección **`results`**: ahí está el documento con la nota
+   y la clave de acceso; en **`batches`**, el resumen del lote.
 
 ---
 
@@ -143,6 +147,7 @@ curl -s -X POST http://localhost:5678/webhook/scanexam -H "Content-Type: applica
 | --- | --- |
 | http://localhost:3000 | Panel docente (`admin`/`admin123`) |
 | http://localhost:8025 | Mailpit — correo con nota + clave |
+| http://localhost:8081 | mongo-express — colecciones (`exams`: batches/results, `users`) |
 | http://localhost:5000 | MLflow — 3 experimentos + champion |
 | http://localhost:5678 | n8n — workflow / Executions |
 | http://localhost:8000/docs | Swagger de la API del pipeline |
