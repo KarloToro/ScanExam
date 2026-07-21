@@ -33,6 +33,7 @@ Fecha: AAAA-MM-DD
 | [0007](0007-confidence-por-pregunta.md) | Cálculo del `confidence` por pregunta | Aceptada |
 | [0008](0008-reconstruccion-codigo-estudiante.md) | Reconstrucción del código de estudiante e identificación | Aceptada |
 | [0009](0009-notificacion-email-en-panel.md) | Correos de notificación en panel-api (no en n8n) | Aceptada |
+| [0010](0010-permisos-volumen-compartido.md) | Permisos del volumen compartido (`uploads/`) panel-api ↔ pipeline | Propuesta |
 
 > Nota: la decisión de alcance sobre variantes A/B vive en
 > [`../decision_not_support_for_A_B_exams.md`](../decision_not_support_for_A_B_exams.md)
