@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	_ "github.com/joho/godotenv/autoload"
@@ -16,9 +17,11 @@ import (
 	authhttp "scan-exam-api/internal/auth/transport/http"
 	"scan-exam-api/internal/database"
 	examapp "scan-exam-api/internal/exam/application"
+	exammongo "scan-exam-api/internal/exam/infra/mongodb"
 	examn8n "scan-exam-api/internal/exam/infra/n8n"
 	examstorage "scan-exam-api/internal/exam/infra/storage"
 	examhttp "scan-exam-api/internal/exam/transport/http"
+	"scan-exam-api/internal/notification"
 	userapp "scan-exam-api/internal/user/application"
 	userdomain "scan-exam-api/internal/user/domain"
 	usermongo "scan-exam-api/internal/user/infra/mongodb"
@@ -67,9 +70,21 @@ func NewServer() *Server {
 		n8nWebhookURL = examapp.DefaultN8NWebhookURL
 	}
 
+	examsDB := myServer.db.Database("exams")
 	batchWriter := examstorage.NewBatchWriter(workspace, uploadsDir)
 	pipelineClient := examn8n.NewClient(n8nWebhookURL)
-	uploadExam := examapp.NewUploadExamUseCase(batchWriter, pipelineClient)
+	batchRepo := exammongo.NewBatchRepository(examsDB)
+	resultRepo := exammongo.NewResultRepository(examsDB)
+
+	var notifier notification.Notifier
+	if host := strings.TrimSpace(os.Getenv("SMTP_HOST")); host != "" {
+		notifier = notification.NewSMTP(host, os.Getenv("SMTP_PORT"), os.Getenv("SMTP_FROM"))
+	} else {
+		log.Println("SMTP_HOST not set, email notifications disabled")
+		notifier = notification.NewNoop()
+	}
+
+	uploadExam := examapp.NewUploadExamUseCase(batchWriter, pipelineClient, batchRepo, resultRepo, notifier)
 
 	myServer.jwtService = jwtService
 	myServer.userHandler = userhttp.NewUserHandler(users)

@@ -75,6 +75,9 @@ func (h *ExamHandler) Upload(w http.ResponseWriter, r *http.Request) {
 		} else if errors.Is(err, domain.ErrPipelineFailed) {
 			status = http.StatusBadGateway
 			message = err.Error()
+		} else if errors.Is(err, domain.ErrPersistFailed) {
+			status = http.StatusInternalServerError
+			message = err.Error()
 		}
 
 		writeJSON(w, status, &application.UploadExamResponse{

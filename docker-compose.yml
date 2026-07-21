@@ -109,6 +109,16 @@ services:
       - ./:/workspace
 
   # --------------------------------------------------------------------------
+  # mailpit: SMTP de prueba (captura correos; UI en :8025).
+  # --------------------------------------------------------------------------
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: scanexam-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  # --------------------------------------------------------------------------
   # mongo: base de datos del panel (usuarios / auth).
   # --------------------------------------------------------------------------
   mongo:
@@ -143,6 +153,8 @@ services:
         condition: service_started
       scanexam-app:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     environment:
       PORT: "8080"
       JWT_SECRET: "change-me-in-production"
@@ -154,6 +166,9 @@ services:
       SCANEXAM_WORKSPACE: /workspace
       SCANEXAM_UPLOADS_DIR: uploads
       N8N_WEBHOOK_URL: "http://n8n:5678/webhook/scanexam"
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_FROM: "ScanExam <noreply@scanexam.local>"
     volumes:
       - ./:/workspace
     ports:

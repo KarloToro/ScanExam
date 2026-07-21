@@ -11,6 +11,7 @@ var (
 	ErrInvalidStudentsCSV = errors.New("students file must be a CSV")
 	ErrInvalidAnswersCSV  = errors.New("answers file must be a CSV")
 	ErrPipelineFailed     = errors.New("pipeline failed")
+	ErrPersistFailed      = errors.New("failed to persist exam results")
 )
 
 // ValidationError wraps a fail-fast validation message for the upload flow.
