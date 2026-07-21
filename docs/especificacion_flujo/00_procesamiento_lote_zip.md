@@ -4,6 +4,14 @@
 - Canonización y calidad visual -> **P2**
 - Identificación, clasificación y estados `OK/OBSERVED/ERROR` -> **P3**
 
+> **Nota (actualización de integración):** el **panel docente de producción**
+> (`scan-exam-panel/`) ya **no recibe un ZIP**. El docente sube las **imágenes**
+> de las fichas y edita **estudiantes** y **respuestas** en tablas del navegador
+> (petición `multipart/form-data`); `panel-api` reconstruye internamente la
+> estructura `Fichas/ Estudiantes/ Respuestas/` descrita abajo. Por eso este
+> documento sigue vigente como **contrato de la estructura interna del lote** (lo
+> que consume el pipeline), aunque el ZIP ya no sea la puerta de entrada real.
+> Detalle en [`../INTEGRACION.md`](../INTEGRACION.md) §5 y §8.
 
 ## Requisitos previos:
 Definición de la estructura del zip de entrada:
