@@ -114,8 +114,10 @@ docs/                 # Documentación (integración, ADRs, contratos, flujo)
 
 | Documento | Contenido |
 | --- | --- |
+| [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) | **Punto de entrada:** catálogo de todos los componentes + mapa de la doc. |
 | [`docs/INTEGRACION.md`](docs/INTEGRACION.md) | **Cómo está integrado todo** (servicios, flujo, contratos, despliegue). |
-| [`ESTRUCTURA_PROYECTO.md`](ESTRUCTURA_PROYECTO.md) | Guía de arquitectura, carpetas y responsabilidades del equipo (P1–P5). |
+| [`docs/DEMO.md`](docs/DEMO.md) | Runbook para levantar y demostrar (terminal + navegador). |
+| [`ESTRUCTURA_PROYECTO.md`](ESTRUCTURA_PROYECTO.md) | Guía de carpetas y responsabilidades del equipo (P1–P5, parcialmente histórica). |
 | [`docs/adr/`](docs/adr/) | Decisiones de arquitectura (ADRs) con su *porqué*. |
 | [`docs/informacion_relevante_entre_modulos/`](docs/informacion_relevante_entre_modulos/) | Contratos entre módulos (batch, plantilla, reglas, n8n). |
 | [`docs/especificacion_flujo/`](docs/especificacion_flujo/) | Especificación del flujo de procesamiento de un lote. |

@@ -1,3 +1,11 @@
+> **⚠️ Especificación base (histórica).** Este documento fija los **conceptos,
+> reglas y estados** del sistema y sigue vigente en eso. Algunos aspectos de
+> **implementación evolucionaron** respecto a lo aquí descrito: la entrada por el
+> panel es **multipart, no ZIP**; la persistencia es **MongoDB** (no SQLite); y el
+> panel es **Go + Nuxt** (no Flask). Para el estado actual ver
+> [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) e
+> [`docs/INTEGRACION.md`](docs/INTEGRACION.md).
+
 ## 1. Descripción general
 
 ScanExam AI es un sistema inteligente de arquitectura distribuida local, orientada a eventos, para la corrección automática de hojas de respuestas ópticas a partir de fotografías. Está diseñado para docentes que necesitan evaluar exámenes en papel de manera rápida, trazable y confiable, combinando la eficiencia de un sistema digital con la transparencia de una evaluación tradicional en papel.

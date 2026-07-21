@@ -1,5 +1,13 @@
 # 🗺️ Guía de Arquitectura y Carpetas - ScanExam AI
 
+> **⚠️ Documento de planificación (parcialmente histórico).** La estructura de
+> carpetas de abajo refleja el plan inicial del equipo. El **panel docente (P4)**
+> ya **no** es `panel_docente/` (stub Flask, superado); el panel real es
+> **`scan-exam-panel/`** (backend Go + frontend Nuxt + MongoDB + mailpit). Para el
+> estado **actual y completo** de componentes ver
+> [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) e
+> [`docs/INTEGRACION.md`](docs/INTEGRACION.md).
+
 Se simplifico al maximo la estructura de carpetas del proyecto para que no sean un obstaculo adicional en el desarrollo del proyecto. Con una deadline de 12 días tenemos que correr.
 
 En fin, el objetivo principal es que **cada miembro del equipo trabaje en su propia carpeta/archivo** sin pisarse los unos a los otros en Git, y que todo se integre de forma sencilla utilizando Docker y n8n.
