@@ -26,6 +26,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	}))
 
 	r.Mount("/auth", authhttp.AuthRouter(s.authHandler))
+	r.Mount("/results", examhttp.ResultRouter(s.resultHandler))
 
 	r.Group(func(r chi.Router) {
 		r.Use(appmiddleware.JWTAuth(s.jwtService))

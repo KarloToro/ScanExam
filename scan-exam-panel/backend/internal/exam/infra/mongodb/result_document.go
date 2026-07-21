@@ -27,6 +27,7 @@ type answerGradeDocument struct {
 type resultDocument struct {
 	ID                string                `bson:"_id"`
 	BatchRef          string                `bson:"batch_ref"`
+	AccessKey         string                `bson:"access_key"`
 	File              string                `bson:"file"`
 	ProcessingStatus  string                `bson:"processing_status"`
 	QualityStatus     string                `bson:"quality_status"`
@@ -59,26 +60,27 @@ func resultFromDomain(result *domain.Result) *resultDocument {
 	}
 
 	doc := &resultDocument{
-		ID:               result.ID,
-		BatchRef:         result.BatchRef,
-		File:             result.File,
-		ProcessingStatus: result.ProcessingStatus,
-		QualityStatus:    result.QualityStatus,
-		Publishable:      result.Publishable,
-		StudentCode: studentCodeDocument{
-			Value:      result.StudentCode.Value,
-			Confidence: result.StudentCode.Confidence,
-		},
-		StudentName:       result.StudentName,
-		Email:             result.Email,
-		Score:             result.Score,
-		MaxScore:          result.MaxScore,
-		Percentage:        result.Percentage,
-		IssueCode:         result.IssueCode,
-		ProcessingMessage: result.ProcessingMessage,
-		Answers:           answers,
-		CreatedAt:         result.CreatedAt,
-	}
+			ID:               result.ID,
+			BatchRef:         result.BatchRef,
+			AccessKey:        result.AccessKey,
+			File:             result.File,
+			ProcessingStatus: result.ProcessingStatus,
+			QualityStatus:    result.QualityStatus,
+			Publishable:      result.Publishable,
+			StudentCode: studentCodeDocument{
+				Value:      result.StudentCode.Value,
+				Confidence: result.StudentCode.Confidence,
+			},
+			StudentName:       result.StudentName,
+			Email:             result.Email,
+			Score:             result.Score,
+			MaxScore:          result.MaxScore,
+			Percentage:        result.Percentage,
+			IssueCode:         result.IssueCode,
+			ProcessingMessage: result.ProcessingMessage,
+			Answers:           answers,
+			CreatedAt:         result.CreatedAt,
+		}
 	if doc.ID == "" {
 		doc.ID = bson.NewObjectID().Hex()
 	}
@@ -107,24 +109,25 @@ func (doc *resultDocument) toDomain() *domain.Result {
 	}
 
 	return &domain.Result{
-		ID:               doc.ID,
-		BatchRef:         doc.BatchRef,
-		File:             doc.File,
-		ProcessingStatus: doc.ProcessingStatus,
-		QualityStatus:    doc.QualityStatus,
-		Publishable:      doc.Publishable,
-		StudentCode: domain.StudentCode{
-			Value:      doc.StudentCode.Value,
-			Confidence: doc.StudentCode.Confidence,
-		},
-		StudentName:       doc.StudentName,
-		Email:             doc.Email,
-		Score:             doc.Score,
-		MaxScore:          doc.MaxScore,
-		Percentage:        doc.Percentage,
-		IssueCode:         doc.IssueCode,
-		ProcessingMessage: doc.ProcessingMessage,
-		Answers:           answers,
-		CreatedAt:         doc.CreatedAt,
-	}
+			ID:               doc.ID,
+			BatchRef:         doc.BatchRef,
+			AccessKey:        doc.AccessKey,
+			File:             doc.File,
+			ProcessingStatus: doc.ProcessingStatus,
+			QualityStatus:    doc.QualityStatus,
+			Publishable:      doc.Publishable,
+			StudentCode: domain.StudentCode{
+				Value:      doc.StudentCode.Value,
+				Confidence: doc.StudentCode.Confidence,
+			},
+			StudentName:       doc.StudentName,
+			Email:             doc.Email,
+			Score:             doc.Score,
+			MaxScore:          doc.MaxScore,
+			Percentage:        doc.Percentage,
+			IssueCode:         doc.IssueCode,
+			ProcessingMessage: doc.ProcessingMessage,
+			Answers:           answers,
+			CreatedAt:         doc.CreatedAt,
+		}
 }
