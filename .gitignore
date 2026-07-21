@@ -54,3 +54,6 @@ repomix_log.txt
 estructura*.txt
 # Subidas del panel (P4)
 uploads/
+
+# Datasets de experimentos MLflow (regenerables con build_variant.py)
+data/_exp/

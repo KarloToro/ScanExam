@@ -159,6 +159,8 @@ def main():
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--no-mlflow", action="store_true",
                         help="Entrena y exporta el .pt sin registrar en MLflow.")
+    parser.add_argument("--run-name", default=None,
+                        help="Nombre de la corrida en MLflow (para comparar experimentos).")
     args = parser.parse_args()
 
     root = find_project_root()
@@ -201,13 +203,16 @@ def main():
             if tracking_uri:
                 mlflow.set_tracking_uri(tracking_uri)
             mlflow.set_experiment("scanexam-bubble-classifier")
-            active_run = mlflow.start_run()
+            active_run = mlflow.start_run(run_name=args.run_name)
             mlflow.log_params({
                 "epochs": args.epochs,
                 "batch_size": args.batch_size,
                 "learning_rate": args.lr,
                 "val_split": args.val_split,
                 "seed": args.seed,
+                "data_dir": str(data_dir),
+                "train_size": len(train_loader.dataset),
+                "val_size": len(val_loader.dataset),
                 "architecture": "BubbleClassifier",
                 "num_classes": len(class_names),
                 "classes": ",".join(class_names),
