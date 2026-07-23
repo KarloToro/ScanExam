@@ -1,2 +1,17 @@
 [tools]
-python = "3.14.6"
+python = "3.12.9"
+
+[tasks.sync]
+description = "Sincroniza el entorno virtual con uv y actualiza requirements.txt"
+run = """
+uv sync
+uv export --format requirements-txt --output-file requirements.txt --no-hashes
+"""
+
+[tasks.start]
+description = "Inicia el servidor monolítico FastAPI con uvicorn"
+run = "uv run uvicorn main:app --reload --port 8000"
+
+[tasks.test]
+description = "Ejecuta toda la batería de pruebas de la carpeta tests/"
+run = "uv run pytest tests/ -v"

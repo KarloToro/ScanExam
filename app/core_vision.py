@@ -1,30 +1,19 @@
 # app/core_vision.py
 """
-P2 — Procesamiento visual de la ficha completa.
+Procesamiento visual de la ficha completa.
 
 Este módulo se construye por fases:
 
-    Fase 1 (implementada): detección de los 4 marcadores de referencia
-        sobre la foto cruda y resolución de orientación.
-    Fase 2 (implementada): corrección de perspectiva y transformación
-        a la imagen canónica (homografía). Se adelantó respecto al
-        plan original porque las métricas de calidad de Anexo C
-        (M3, M4) requieren la imagen ya canonizada para tener sentido.
-    Fase 3 (implementada): validación de calidad visual (Anexo C:
-        M1-M4) sobre la imagen ya canonizada.
+    Fase 1: detección de los 4 marcadores de referencia sobre la foto cruda 
+            y resolución de orientación.
+    Fase 2: corrección de perspectiva y transformación a la imagen canónica (homografía).
+    Fase 3: validación de calidad visual (Anexo C: M1-M4) sobre la imagen ya canonizada.
 
-Errores técnicos que puede producir este módulo (ver Anexo A del
-documento de flujo):
-
+Errores técnicos que puede producir este módulo:
     MARKERS_NOT_FOUND     -> no se detectaron los 4 marcadores.
-    INVALID_ORIENTATION   -> se detectaron 4 marcadores, pero el
-                             marcador especial no cae en la posición
-                             de orientación esperada (top_right).
-    WARP_FAILED           -> los marcadores se detectaron bien, pero la
-                             transformación de perspectiva no pudo
-                             calcularse o produjo un resultado inválido.
-    LOW_CONFIDENCE        -> la ficha se canonizó, pero no superó los
-                             controles mínimos de calidad (M1-M4).
+    INVALID_ORIENTATION   -> se detectaron 4 marcadores, pero el marcador especial no cae en top_right.
+    WARP_FAILED           -> los marcadores se detectaron bien, pero la transformación falló.
+    LOW_CONFIDENCE        -> la ficha se canonizó, pero no superó los controles mínimos de calidad (M1-M4).
 """
 
 from __future__ import annotations
@@ -38,8 +27,13 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-import config
-import template_loader
+# Adaptación para importaciones compatibles con el monolito FastAPI desde raíz y ejecuciones locales
+try:
+    from app import config
+    from app import template_loader
+except ImportError:
+    import config
+    import template_loader
 
 
 # ---------------------------------------------------------------------------
@@ -61,21 +55,6 @@ class MarkerCandidate:
 class MarkerDetectionResult:
     """
     Resultado de la detección de marcadores sobre una foto cruda.
-
-    status:
-        "OK"                  -> los 4 marcadores fueron ubicados y la
-                                  orientación es la esperada.
-        "MARKERS_NOT_FOUND"   -> no se pudo ubicar alguno de los 4
-                                  marcadores (o hay ambigüedad en cuál
-                                  es el marcador de orientación).
-        "INVALID_ORIENTATION" -> los 4 marcadores se ubicaron, pero el
-                                  marcador especial no está donde debería.
-
-    ordered_points:
-        dict con las 4 llaves "top_left", "top_right", "bottom_left",
-        "bottom_right" -> (x, y) en la foto cruda. Solo viene poblado
-        cuando status == "OK". Este es el insumo directo para la
-        homografía de Fase 3.
     """
 
     status: str
@@ -96,22 +75,6 @@ def detect_reference_markers(
     """
     Detecta los 4 marcadores cuadrados de referencia sobre la foto cruda
     y determina si la orientación coincide con la esperada.
-
-    No asume ningún tamaño absoluto de marcador: filtra por forma
-    (cuadrado) y por proporción respecto al área total de la imagen,
-    ya que la foto puede tomarse a distintas distancias.
-
-    Parámetros:
-        image: imagen BGR cargada con cv2.imread (foto cruda, sin
-            canonizar).
-        orientation_marker: nombre de la posición que debe tener el
-            marcador especial (con hueco interior). Por defecto se
-            toma de config.ORIENTATION_MARKER_POSITION, que debe
-            coincidir con "orientation_marker" en
-            marcadores_centros.json.
-
-    Retorna:
-        MarkerDetectionResult
     """
     if image is None or image.size == 0:
         return MarkerDetectionResult(
@@ -124,7 +87,6 @@ def detect_reference_markers(
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
     candidates = _find_square_candidates(gray, width, height)
-
     quad_candidates = _select_best_quad(candidates)
 
     if quad_candidates is None:
@@ -140,7 +102,6 @@ def detect_reference_markers(
 
     corner_map = _order_candidates_by_geometry(quad_candidates)
 
-    # ¿Cuál de los 4 candidatos elegidos tiene el hueco interior?
     holed_corners = [
         name for name, candidate in corner_map.items()
         if candidate.has_inner_hole
@@ -191,19 +152,7 @@ def detect_and_autorotate(
     image: np.ndarray,
 ) -> tuple[np.ndarray, MarkerDetectionResult, int]:
     """
-    Envuelve detect_reference_markers() con auto-corrección de
-    orientación (Decisión 1 del equipo, ver 01_modulo_cv.md):
-
-        Si la orientación puede resolverse de forma inequívoca
-        rotando 90°, 180° o 270°, se corrige automáticamente.
-        Si no se puede resolver con confianza, se devuelve
-        INVALID_ORIENTATION (o el error original si nunca se
-        encontraron los 4 marcadores).
-
-    Retorna (imagen_final, resultado_deteccion, grados_rotados).
-    La imagen_final ya viene rotada si hubo auto-corrección; los
-    "ordered_points" de resultado_deteccion son relativos a esa
-    imagen_final, no a la imagen original.
+    Envuelve detect_reference_markers() con auto-corrección de orientación.
     """
     original_result = detect_reference_markers(image)
 
@@ -230,14 +179,8 @@ def detect_and_autorotate(
         return rotated_image, rotated_result, degrees
 
     if len(resolved) == 0:
-        # No se pudo resolver en ninguna rotación: se conserva el
-        # motivo de falla original (MARKERS_NOT_FOUND o
-        # INVALID_ORIENTATION), tal como venía.
         return image, original_result, 0
 
-    # Más de una rotación "resuelve" la orientación: ambiguo, no se
-    # autocorrige con confianza (caso extremadamente improbable dado
-    # que solo hay 1 marcador especial, pero se cubre por seguridad).
     ambiguous_result = MarkerDetectionResult(
         status="INVALID_ORIENTATION",
         issue_code=config.MARKER_ISSUE_CODES["INVALID_ORIENTATION"],
@@ -250,19 +193,11 @@ def detect_and_autorotate(
     return image, ambiguous_result, 0
 
 
-
-
 def _find_square_candidates(
     gray: np.ndarray,
     width: int,
     height: int,
 ) -> list[MarkerCandidate]:
-    """
-    Busca contornos cuadrados oscuros que puedan ser marcadores de
-    referencia, en cualquier parte de la imagen.
-    """
-    # Otsu separa razonablemente bien "hoja blanca" de "marcador negro"
-    # en condiciones normales de iluminación.
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
     _, binary = cv2.threshold(
         blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
@@ -275,7 +210,7 @@ def _find_square_candidates(
     if hierarchy is None:
         return []
 
-    hierarchy = hierarchy[0]  # cv2 envuelve la jerarquía en un array extra
+    hierarchy = hierarchy[0]
     image_area = float(width * height)
 
     min_area = image_area * config.MARKER_MIN_AREA_RATIO
@@ -329,32 +264,21 @@ def _has_inner_hole(
     contours: list[np.ndarray],
     min_child_area: float,
 ) -> bool:
-    """
-    Revisa si el contorno tiene al menos un hijo (hueco interior) con
-    área significativa. Esto distingue al marcador de orientación
-    (cuadrado negro con cuadrado claro adentro) de los 3 marcadores
-    sólidos.
-
-    hierarchy[i] = [next, previous, first_child, parent]
-    """
     first_child = hierarchy[contour_index][2]
 
     child_index = first_child
     while child_index != -1:
         child_area = cv2.contourArea(contours[child_index])
 
-        # El hueco debe ser una fracción razonable del marcador padre,
-        # no ruido de compresión/JPEG.
         if child_area >= min_child_area * 0.15:
             return True
 
-        child_index = hierarchy[child_index][0]  # siguiente hermano
+        child_index = hierarchy[child_index][0]
 
     return False
 
 
 def _hull_area(centers: list[tuple[float, float]]) -> float:
-    """Área del cuadrilátero convexo formado por 4 (o más) puntos."""
     points = np.array(centers, dtype=np.float32)
     hull = cv2.convexHull(points)
     return cv2.contourArea(hull)
@@ -363,18 +287,6 @@ def _hull_area(centers: list[tuple[float, float]]) -> float:
 def _select_best_quad(
     candidates: list[MarkerCandidate],
 ) -> list[MarkerCandidate] | None:
-    """
-    De entre todos los candidatos cuadrados detectados, selecciona el
-    grupo de 4 que forma el cuadrilátero convexo de mayor área.
-
-    Esto es deliberadamente independiente de la posición del candidato
-    dentro del encuadre de la foto (a diferencia de un enfoque por
-    zonas fijas), porque en fotos reales la hoja rara vez llena todo
-    el encuadre y puede estar rotada o inclinada. También permite
-    ignorar ruido o una segunda ficha parcialmente visible, ya que la
-    ficha principal en primer plano casi siempre forma el
-    cuadrilátero más grande.
-    """
     if len(candidates) < 4:
         return None
 
@@ -397,16 +309,9 @@ def _select_best_quad(
 def _order_candidates_by_geometry(
     candidates: list[MarkerCandidate],
 ) -> dict[str, MarkerCandidate]:
-    """
-    Ordena 4 candidatos como top_left/top_right/bottom_left/bottom_right
-    usando la heurística estándar de suma/diferencia de coordenadas.
-    Es robusta a inclinación y a que la hoja no esté perfectamente
-    encuadrada, porque compara los candidatos entre sí en vez de contra
-    posiciones fijas del frame completo.
-    """
     centers = np.array([c.center for c in candidates], dtype=np.float32)
     sums = centers.sum(axis=1)
-    diffs = centers[:, 0] - centers[:, 1]  # x - y
+    diffs = centers[:, 0] - centers[:, 1]
 
     return {
         "top_left": candidates[int(np.argmin(sums))],
@@ -417,23 +322,11 @@ def _order_candidates_by_geometry(
 
 
 # ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
 # Fase 2: corrección de perspectiva (warp a imagen canónica)
 # ---------------------------------------------------------------------------
 
 @dataclass
 class WarpResult:
-    """
-    Resultado de la corrección de perspectiva sobre una foto cruda ya
-    con marcadores detectados (status == "OK" en MarkerDetectionResult).
-
-    status:
-        "OK"           -> se generó la imagen canónica correctamente.
-        "WARP_FAILED"  -> la homografía no pudo calcularse o el
-                          resultado no pasó las validaciones mínimas
-                          de sanidad.
-    """
-
     status: str
     issue_code: str | None
     message: str
@@ -448,25 +341,6 @@ def correct_perspective(
     canonical_width: int,
     canonical_height: int,
 ) -> WarpResult:
-    """
-    Corrige la perspectiva de la foto cruda y la transforma a la imagen
-    canónica, usando los 4 marcadores detectados (Fase 1) como origen y
-    las coordenadas oficiales de marcadores_centros.json como destino.
-
-    Parámetros:
-        image: foto cruda original (BGR).
-        detected_points: "ordered_points" de un MarkerDetectionResult
-            con status == "OK" (top_left/top_right/bottom_left/bottom_right
-            en la foto cruda).
-        marker_centers: centros oficiales de marcadores en la imagen
-            canónica (viene de TemplateContract.marker_centers, es decir,
-            de marcadores_centros.json vía template_loader).
-        canonical_width / canonical_height: tamaño de salida esperado
-            (TemplateContract.canonical_width / canonical_height).
-
-    Retorna:
-        WarpResult
-    """
     missing_keys = [
         key for key in config.WARP_POINT_ORDER
         if key not in detected_points or key not in marker_centers
@@ -492,8 +366,6 @@ def correct_perspective(
         dtype=np.float32,
     )
 
-    # Un cuadrilátero degenerado (puntos casi colineales, área ~0) no
-    # puede producir una homografía válida.
     src_area = cv2.contourArea(src_points)
 
     if src_area <= 0:
@@ -521,10 +393,6 @@ def correct_perspective(
         (canonical_width, canonical_height),
     )
 
-    # Validación mínima de sanidad: si el resultado es casi completamente
-    # negro, algo salió mal en el mapeo (orden de puntos incorrecto,
-    # homografía degenerada, etc.). La validación exhaustiva de zonas
-    # negras vive en la métrica M3 (Fase 3).
     mean_intensity = float(
         cv2.cvtColor(canonical_image, cv2.COLOR_BGR2GRAY).mean()
     )
@@ -556,18 +424,7 @@ def extraer_recorte(
     crop_size: int,
 ) -> np.ndarray:
     """
-    Helper de apoyo (Decisión 4 del equipo, ver 01_modulo_cv.md): recibe
-    la imagen canonizada, un centro [x, y] y un tamaño de recorte, y
-    devuelve el crop cuadrado alrededor de ese centro.
-
-    Recorrer todos los centros de respuestas_centros.json /
-    identificacion_centros.json, generar todos los crops y construir
-    crop_manifest.json es responsabilidad de P3 — esta función solo
-    resuelve el recorte individual.
-
-    Si el centro está cerca del borde de la imagen, el recorte se
-    desplaza lo necesario para mantener exactamente crop_size x
-    crop_size en vez de devolver un recorte más chico.
+    Extrae un recorte cuadrado alrededor de un centro geométrico directamente en RAM.
     """
     cx, cy = center
     half = crop_size // 2
@@ -576,8 +433,6 @@ def extraer_recorte(
     x1 = int(round(cx)) - half
     y1 = int(round(cy)) - half
 
-    # Si el crop se sale por un borde, se desplaza para conservar el
-    # tamaño exacto (en vez de recortar el crop resultante).
     x1 = max(0, min(x1, width - crop_size))
     y1 = max(0, min(y1, height - crop_size))
 
@@ -593,8 +448,6 @@ def extraer_recorte(
 
 @dataclass
 class QualityMetrics:
-    """Valores crudos de cada métrica, útiles para depuración/calibración."""
-
     sharpness: float
     sharpness_passed: bool
 
@@ -610,15 +463,6 @@ class QualityMetrics:
 
 @dataclass
 class QualityValidationResult:
-    """
-    Resultado de aplicar las métricas M1-M4 (Anexo C) sobre la imagen
-    ya canonizada.
-
-    status:
-        "OK"              -> pasó las 4 métricas.
-        "LOW_CONFIDENCE"   -> alguna métrica falló.
-    """
-
     status: str
     issue_code: str | None
     message: str
@@ -630,40 +474,24 @@ def validate_canonical_quality(
     marker_centers: dict[str, list[int]],
     marker_size_px: int = 100,
 ) -> QualityValidationResult:
-    """
-    Aplica las métricas M1 (nitidez), M2 (brillo), M3 (zonas negras) y
-    M4 (posición de marcadores) sobre la imagen canónica, tal como
-    describe el Anexo C.
-
-    Parámetros:
-        canonical_image: imagen ya corregida por Fase 2
-            (correct_perspective).
-        marker_centers: centros oficiales de marcadores._centros.json
-            (TemplateContract.marker_centers).
-        marker_size_px: tamaño físico del marcador en la plantilla
-            (marker_size_px de marcadores_centros.json).
-
-    Retorna:
-        QualityValidationResult
-    """
     gray = cv2.cvtColor(canonical_image, cv2.COLOR_BGR2GRAY)
 
-    # --- M1: nitidez ---
+    # M1: nitidez
     sharpness = float(cv2.Laplacian(gray, cv2.CV_64F).var())
     sharpness_passed = sharpness >= config.QUALITY_MIN_SHARPNESS
 
-    # --- M2: brillo ---
+    # M2: brillo
     brightness = float(gray.mean())
     brightness_passed = (
         config.QUALITY_MIN_BRIGHTNESS <= brightness <= config.QUALITY_MAX_BRIGHTNESS
     )
 
-    # --- M3: zonas negras/vacías ---
+    # M3: zonas negras
     dark_mask = gray < config.QUALITY_DARK_PIXEL_THRESHOLD
     dark_area_ratio = float(dark_mask.sum()) / dark_mask.size
     dark_area_passed = dark_area_ratio <= config.QUALITY_MAX_DARK_AREA_RATIO
 
-    # --- M4: verificación de marcadores en posiciones esperadas ---
+    # M4: marcadores
     marker_offsets: dict[str, float | None] = {}
     markers_passed = True
 
@@ -728,13 +556,6 @@ def _measure_marker_offset(
     expected_center: list[int],
     marker_size_px: int,
 ) -> float | None:
-    """
-    Recorta una región de interés alrededor del centro esperado de un
-    marcador (M4) y mide qué tan lejos está el centroide oscuro real
-    respecto al centro oficial. Retorna None si no se encontró
-    suficiente presencia oscura en la ROI (el marcador se perdió o
-    deformó en el warp).
-    """
     half = marker_size_px // 2 + config.QUALITY_MARKER_ROI_MARGIN
     cx, cy = expected_center
 
@@ -767,59 +588,9 @@ def _measure_marker_offset(
 # ---------------------------------------------------------------------------
 # Contrato público de P2: process_ficha()
 # ---------------------------------------------------------------------------
-# Esta es la única función que core_pipeline.py (y por extensión P3)
-# debería necesitar llamar. Consolida las 3 fases y traduce cualquier
-# falla técnica (Anexo A: MARKERS_NOT_FOUND, INVALID_ORIENTATION,
-# WARP_FAILED, LOW_CONFIDENCE) al mismo desenlace de pipeline: la ficha
-# no pudo canonizarse, así que se marca como ERROR y no se genera
-# score/publishable (ver "Canonizar ficha" -> "Ficha canonizada
-# correctamente?" en el diagrama de flujo). El detalle de CUÁL de los
-# 4 errores ocurrió viaja en issue_code/message para reportes y
-# depuración, pero P3 no necesita distinguir entre ellos para decidir
-# su propio flujo.
 
 @dataclass
 class FichaProcessingResult:
-    """
-    Resultado consolidado de process_ficha().
-
-    status:
-        "OK"    -> la ficha se canonizó y pasó control de calidad.
-                   canonical_image queda listo para que P3 lea burbujas
-                   usando los centros de respuestas_centros.json /
-                   identificacion_centros.json directamente sobre esta
-                   imagen (sin transformación adicional).
-        "ERROR" -> alguna de las 3 fases falló. canonical_image es
-                   None. issue_code indica el motivo específico
-                   (ver Anexo A) para reportes/depuración.
-
-    issue_code:
-        Código de config.ISSUE_CODES (decisión ya confirmada con el
-        equipo: se reutilizan MISSING_REFERENCE_MARKERS,
-        EXTREME_PERSPECTIVE, TEMPLATE_MISMATCH y CORRUPT_FILE en vez
-        de crear códigos nuevos). Distinto del campo "issue_code" que
-        va en vision_manifest.json (ver manifest_entry), que usa el
-        vocabulario técnico de Anexo A tal como pidió el equipo
-        (MARKERS_NOT_FOUND / INVALID_ORIENTATION / WARP_FAILED /
-        LOW_CONFIDENCE) para ese archivo específico.
-
-    canonical_path:
-        Ruta donde se guardó el PNG canónico en disco, si se pasó
-        output_root. None si no se persistió a disco o si status es
-        "ERROR".
-
-    debug:
-        Detalle interno por fase (no es parte estricta del contrato,
-        pero es útil para logging).
-
-    manifest_entry:
-        Dict con el formato exacto que espera vision_manifest.json
-        (Decisión 3.1 del equipo). process_batch() usa este campo
-        para construir el manifest de un lote completo; también está
-        disponible acá por si el llamador quiere armar su propio
-        manifest de otra forma.
-    """
-
     status: str
     issue_code: str | None
     message: str
@@ -831,12 +602,6 @@ class FichaProcessingResult:
 
 @lru_cache(maxsize=4)
 def _get_cached_template(template_id: str):
-    """
-    Evita recargar los JSON de plantilla en cada ficha de un mismo
-    lote. Un lote completo (Anexo B) puede tener decenas de fichas;
-    releer y revalidar los JSON de plantilla en cada una sería
-    trabajo repetido innecesario.
-    """
     return template_loader.load_template(template_id=template_id)
 
 
@@ -847,13 +612,6 @@ def _build_manifest_entry(
     technical_code: str | None,
     quality_metrics: dict | None,
 ) -> dict:
-    """
-    Arma la entrada de vision_manifest.json (Decisión 3.1 del equipo).
-    "issue_code" acá usa el vocabulario técnico de Anexo A
-    (MARKERS_NOT_FOUND / INVALID_ORIENTATION / WARP_FAILED /
-    LOW_CONFIDENCE), no el config.ISSUE_CODES de FichaProcessingResult
-    -- son dos catálogos distintos para dos consumidores distintos.
-    """
     return {
         "file": filename,
         "status": status,
@@ -870,36 +628,10 @@ def process_ficha(
     original_filename: str | None = None,
 ) -> FichaProcessingResult:
     """
-    Punto de entrada único de P2. Recibe una foto cruda (ruta o imagen
-    ya cargada con cv2) y devuelve la imagen canónica lista para P3, o
-    un ERROR con el motivo técnico si la ficha no pudo procesarse.
-
-    Si se pasa output_root (Decisión 3 del equipo), además:
-        - guarda la ficha canonizada como PNG en
-          {output_root}/normalized/{nombre}.png
-        - deja lista la entrada de vision_manifest.json en
-          resultado.manifest_entry (proceso_batch() la usa para
-          escribir el manifest completo del lote).
-
-    output_root representa la carpeta "work/" del lote (no
-    BATCH-001/ completo): P2 no conoce ni construye la estructura
-    completa del batch, solo escribe dentro de la carpeta que se le
-    pase por parámetro.
-
-    Uso esperado desde core_pipeline.py:
-
-        resultado = process_ficha(ruta_a_la_foto, output_root=work_dir)
-
-        if resultado.status == "ERROR":
-            # mover la foto a rechazadas/, registrar issue_code en
-            # reporte_observaciones.xlsx, continuar con la siguiente ficha.
-            ...
-        else:
-            # resultado.canonical_path ya quedó escrito en disco.
-            ...
+    Punto de entrada único de P2. Recibe una foto cruda (ruta o np.ndarray BGR)
+    y devuelve la imagen canónica lista en RAM.
     """
     template = _get_cached_template(template_id)
-
     filename = original_filename
 
     if isinstance(image, (str, Path)):
@@ -929,7 +661,7 @@ def process_ficha(
             ),
         )
 
-    # --- Fase 1: marcadores (con auto-rotación, Decisión 1) ---
+    # --- Fase 1: marcadores ---
     imagen_final, deteccion, grados_rotados = detect_and_autorotate(raw_image)
 
     if deteccion.status != "OK":
@@ -1026,14 +758,6 @@ def _guardar_canonica_png(
     output_root: str | Path,
     filename: str | None,
 ) -> tuple[Path, str]:
-    """
-    Guarda la ficha canonizada como PNG en {output_root}/normalized/
-    (Decisión 2 y 3 del equipo). Retorna (path_absoluto,
-    path_para_manifest), donde path_para_manifest se arma prefijado
-    con el nombre de carpeta de output_root (p. ej. "work/normalized/
-    ficha_001.png"), tal como muestra el ejemplo de vision_manifest.json
-    acordado con el equipo.
-    """
     output_root = Path(output_root)
     normalized_dir = output_root / "normalized"
     normalized_dir.mkdir(parents=True, exist_ok=True)
@@ -1055,15 +779,6 @@ def process_batch(
     output_root: str | Path,
     template_id: str = config.TEMPLATE_ID,
 ) -> list[FichaProcessingResult]:
-    """
-    Corre process_ficha() sobre una lista de fotos y escribe
-    {output_root}/vision_manifest.json con el resultado de todas
-    (Decisión 3.1 del equipo).
-
-    P2 no construye la estructura completa de BATCH-001/ (eso es de
-    P3/core_pipeline.py) — solo escribe dentro de output_root, que
-    representa la carpeta work/ del lote.
-    """
     output_root = Path(output_root)
     resultados = []
 
@@ -1080,223 +795,3 @@ def process_batch(
         json.dump(manifest, file, indent=2, ensure_ascii=False)
 
     return resultados
-
-
-
-# ---------------------------------------------------------------------------
-# Utilidades de depuración visual (equivalente en espíritu a validar_centros.py)
-# ---------------------------------------------------------------------------
-
-def draw_detection_debug(image: np.ndarray, result: MarkerDetectionResult) -> np.ndarray:
-    """
-    Dibuja los candidatos y el resultado sobre una copia de la imagen,
-    para inspección visual manual durante el desarrollo.
-    """
-    debug_image = image.copy()
-
-    for candidate in result.candidates:
-        color = (0, 255, 255) if candidate.has_inner_hole else (255, 180, 0)
-        cv2.drawContours(debug_image, [candidate.contour], -1, color, 3)
-        cx, cy = int(candidate.center[0]), int(candidate.center[1])
-        cv2.circle(debug_image, (cx, cy), 6, (0, 0, 255), -1)
-
-    if result.ordered_points:
-        for name, point in result.ordered_points.items():
-            cv2.putText(
-                debug_image,
-                name,
-                (int(point[0]) + 10, int(point[1]) - 10),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.7,
-                (0, 0, 255),
-                2,
-                cv2.LINE_AA,
-            )
-
-    cv2.putText(
-        debug_image,
-        f"status={result.status}",
-        (30, 40),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        1.0,
-        (0, 0, 255),
-        2,
-        cv2.LINE_AA,
-    )
-
-    return debug_image
-
-
-def draw_canonical_debug(canonical_image: np.ndarray, marker_centers: dict[str, list[int]]) -> np.ndarray:
-    """
-    Dibuja los marcadores oficiales sobre la imagen canónica resultante,
-    para verificar visualmente que el warp dejó cada marcador exactamente
-    donde marcadores_centros.json dice que debería estar.
-    """
-    debug_image = canonical_image.copy()
-
-    for name, (cx, cy) in marker_centers.items():
-        cv2.circle(debug_image, (int(cx), int(cy)), 8, (0, 0, 255), 2)
-        cv2.putText(
-            debug_image,
-            name,
-            (int(cx) + 12, int(cy) - 12),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,
-            (0, 0, 255),
-            2,
-            cv2.LINE_AA,
-        )
-
-    return debug_image
-
-
-def draw_marker_roi_debug(
-    canonical_image: np.ndarray,
-    marker_centers: dict[str, list[int]],
-    marker_size_px: int = 100,
-) -> np.ndarray:
-    """
-    Genera un mosaico con la ROI de cada marcador (tal como la ve M4)
-    junto a su máscara de píxeles oscuros y el % de oscuridad medido.
-    Sirve para diagnosticar, esquina por esquina, por qué M4 pudo
-    fallar en una foto real (sombra, blur localizado, iluminación
-    desigual, etc.) en vez de solo ver el "None" en el resultado.
-    """
-    gray = cv2.cvtColor(canonical_image, cv2.COLOR_BGR2GRAY)
-    half = marker_size_px // 2 + config.QUALITY_MARKER_ROI_MARGIN
-
-    rows = []
-
-    for name, (cx, cy) in marker_centers.items():
-        x1 = max(0, int(cx - half))
-        y1 = max(0, int(cy - half))
-        x2 = min(gray.shape[1], int(cx + half))
-        y2 = min(gray.shape[0], int(cy + half))
-
-        roi = gray[y1:y2, x1:x2]
-
-        if roi.size == 0:
-            continue
-
-        dark_mask = (roi < config.QUALITY_DARK_PIXEL_THRESHOLD).astype(np.uint8) * 255
-        dark_ratio = float((roi < config.QUALITY_DARK_PIXEL_THRESHOLD).sum()) / roi.size
-
-        roi_bgr = cv2.cvtColor(roi, cv2.COLOR_GRAY2BGR)
-        mask_bgr = cv2.cvtColor(dark_mask, cv2.COLOR_GRAY2BGR)
-        row = np.hstack([roi_bgr, mask_bgr])
-
-        label = (
-            f"{name}: {dark_ratio * 100:.1f}% oscuro "
-            f"(umbral {config.QUALITY_MIN_MARKER_DARK_RATIO * 100:.0f}%)"
-        )
-        label_bar = np.full((22, row.shape[1], 3), 255, dtype=np.uint8)
-        cv2.putText(
-            label_bar, label, (5, 16), cv2.FONT_HERSHEY_SIMPLEX,
-            0.45, (0, 0, 255), 1, cv2.LINE_AA,
-        )
-
-        rows.append(np.vstack([label_bar, row]))
-
-    if not rows:
-        return canonical_image.copy()
-
-    max_width = max(row.shape[1] for row in rows)
-    padded_rows = []
-
-    for row in rows:
-        if row.shape[1] < max_width:
-            pad = np.full((row.shape[0], max_width - row.shape[1], 3), 255, dtype=np.uint8)
-            row = np.hstack([row, pad])
-        padded_rows.append(row)
-
-    return np.vstack(padded_rows)
-
-
-if __name__ == "__main__":
-    import sys
-
-    if len(sys.argv) != 2:
-        print("Uso: python core_vision.py <ruta_a_foto_cruda.jpg>")
-        sys.exit(1)
-
-    input_path = sys.argv[1]
-    raw_image = cv2.imread(input_path)
-
-    if raw_image is None:
-        print(f"No se pudo leer la imagen: {input_path}")
-        sys.exit(1)
-
-    detection_image, detection, rotation_applied = detect_and_autorotate(raw_image)
-
-    print(f"status: {detection.status}")
-    print(f"issue_code: {detection.issue_code}")
-    print(f"message: {detection.message}")
-    print(f"rotación aplicada: {rotation_applied}°")
-    print(f"candidatos cuadrados detectados en total: {len(detection.candidates)}")
-
-    if detection.ordered_points:
-        print("ordered_points:")
-        for name, point in detection.ordered_points.items():
-            print(f"  {name}: {point}")
-
-    debug_output = draw_detection_debug(detection_image, detection)
-    output_path = "debug_marker_detection.png"
-    cv2.imwrite(output_path, debug_output)
-    print(f"Debug visual guardado en: {output_path}")
-
-    if detection.status != "OK":
-        print("\nNo se intenta el warp: los marcadores no están en condiciones OK.")
-        sys.exit(0)
-
-    template = template_loader.load_template()
-
-    warp_result = correct_perspective(
-        image=detection_image,
-        detected_points=detection.ordered_points,
-        marker_centers=template.marker_centers,
-        canonical_width=template.canonical_width,
-        canonical_height=template.canonical_height,
-    )
-
-    print("\n--- Warp ---")
-    print(f"status: {warp_result.status}")
-    print(f"issue_code: {warp_result.issue_code}")
-    print(f"message: {warp_result.message}")
-
-    if warp_result.status == "OK":
-        canonical_path = "debug_canonical.png"
-        cv2.imwrite(canonical_path, warp_result.canonical_image)
-        print(f"Imagen canónica guardada en: {canonical_path}")
-
-        canonical_debug = draw_canonical_debug(
-            warp_result.canonical_image, template.marker_centers
-        )
-        canonical_debug_path = "debug_canonical_markers.png"
-        cv2.imwrite(canonical_debug_path, canonical_debug)
-        print(f"Debug de marcadores canónicos guardado en: {canonical_debug_path}")
-
-        quality_result = validate_canonical_quality(
-            canonical_image=warp_result.canonical_image,
-            marker_centers=template.marker_centers,
-        )
-
-        print("\n--- Calidad (Anexo C) ---")
-        print(f"status: {quality_result.status}")
-        print(f"issue_code: {quality_result.issue_code}")
-        print(f"message: {quality_result.message}")
-        print(f"M1 nitidez: {quality_result.metrics.sharpness:.1f} "
-              f"(passed={quality_result.metrics.sharpness_passed})")
-        print(f"M2 brillo: {quality_result.metrics.brightness:.1f} "
-              f"(passed={quality_result.metrics.brightness_passed})")
-        print(f"M3 % zonas negras: {quality_result.metrics.dark_area_ratio * 100:.1f}% "
-              f"(passed={quality_result.metrics.dark_area_passed})")
-        print(f"M4 offsets de marcadores (px): {quality_result.metrics.marker_offsets_px} "
-              f"(passed={quality_result.metrics.markers_passed})")
-
-        roi_debug = draw_marker_roi_debug(
-            warp_result.canonical_image, template.marker_centers
-        )
-        roi_debug_path = "debug_marker_rois.png"
-        cv2.imwrite(roi_debug_path, roi_debug)
-        print(f"Debug de ROIs de marcadores (M4) guardado en: {roi_debug_path}")

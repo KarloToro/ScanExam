@@ -67,7 +67,7 @@ LABELS_FILENAME = "labels.json"
 def find_project_root() -> Path:
     current = Path(__file__).resolve()
     for parent in current.parents:
-        if (parent / "README.md").exists() and (parent / "requirements.txt").exists():
+        if (parent / "pyproject.toml").exists():
             return parent
     return Path(__file__).resolve().parents[1]
 

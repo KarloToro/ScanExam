@@ -12,7 +12,7 @@ def encontrar_raiz_proyecto() -> Path:
     actual = Path(__file__).resolve()
 
     for parent in actual.parents:
-        if (parent / "README.md").exists() and (parent / "requirements.txt").exists():
+        if (parent / "pyproject.toml").exists():
             return parent
 
     raise RuntimeError(

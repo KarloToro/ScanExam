@@ -40,17 +40,17 @@ class TemplateContract:
 def find_project_root() -> Path:
     """
     Busca la raíz del proyecto subiendo carpetas hasta encontrar
-    README.md y requirements.txt.
+    README.md y pyproject.toml.
     """
     current = Path(__file__).resolve()
 
     for parent in current.parents:
-        if (parent / "README.md").exists() and (parent / "requirements.txt").exists():
+        if (parent / "pyproject.toml").exists():
             return parent
 
     raise RuntimeError(
         "No se pudo encontrar la raíz del proyecto. "
-        "Verifica que README.md y requirements.txt existan en la raíz."
+        "Verifica que README.md y pyproject.toml existan en la raíz."
     )
 
 

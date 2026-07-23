@@ -1,3 +1,0 @@
-# Dependencias de desarrollo/test (no de runtime). Se instalan en una capa
-# separada del Dockerfile para no invalidar la capa pesada de torch.
-pytest==9.1.1

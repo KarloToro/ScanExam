@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card-custom p-4 h-100">
+            <h5 class="mb-3" style="color: var(--bs-primary);">1. Lista de Alumnos (CSV)</h5>
+            <input type="file" id="fileAlumnos" class="form-control mb-3" accept=".csv">
+            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                <table class="table table-custom mb-0" id="tableAlumnos">
+                    <thead><tr><th>Datos del Archivo</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card-custom p-4 h-100">
+            <h5 class="mb-3" style="color: var(--bs-primary);">2. Clave de Respuestas (CSV)</h5>
+            <input type="file" id="fileRespuestas" class="form-control mb-3" accept=".csv">
+            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                <table class="table table-custom mb-0" id="tableRespuestas">
+                    <thead><tr><th>Datos del Archivo</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 mt-5">
+        <div class="card-custom p-5 text-center" style="border-color: var(--bs-primary);">
+            <h4 class="mb-4">3. Ejecutar Calificación</h4>
+            <p class="text-muted mb-4">Sube las fotografías de los exámenes (.jpg, .png)</p>
+            <input type="file" id="fileImages" class="form-control mb-4 mx-auto" style="max-width: 500px;" accept="image/*" multiple>
+
+            <button class="btn btn-primary btn-lg px-5 py-3 shadow" id="btnProcesar">
+                <span id="btnText">Procesar Exámenes y Descargar Excel</span>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script>
+    let alumnosData = [];
+    let respuestasData = [];
+
+    function renderTable(data, tableId, dataArray) {
+        const thead = document.querySelector(`#${tableId} thead`);
+        const tbody = document.querySelector(`#${tableId} tbody`);
+        if (data.length === 0) return;
+
+        const keys = Object.keys(data[0]);
+        let headHtml = '<tr>';
+        keys.forEach(k => headHtml += `<th>${k.toUpperCase()}</th>`);
+        headHtml += '</tr>';
+        thead.innerHTML = headHtml;
+
+        let bodyHtml = '';
+        data.forEach((row, rowIndex) => {
+            if(Object.values(row).every(val => !val || val.trim() === "")) return;
+            bodyHtml += '<tr>';
+            keys.forEach(key => {
+                bodyHtml += `<td><input type="text" value="${row[key]}" onchange="updateData('${tableId}', ${rowIndex}, '${key}', this.value)"></td>`;
+            });
+            bodyHtml += '</tr>';
+            dataArray.push(row);
+        });
+        tbody.innerHTML = bodyHtml;
+    }
+
+    window.updateData = function(tableId, index, key, value) {
+        if(tableId === 'tableAlumnos') alumnosData[index][key] = value;
+        if(tableId === 'tableRespuestas') respuestasData[index][key] = value;
+    }
+
+    document.getElementById('fileAlumnos').addEventListener('change', function(e) {
+        alumnosData = [];
+        Papa.parse(e.target.files[0], {
+            header: true, skipEmptyLines: true,
+            complete: function(results) { renderTable(results.data, 'tableAlumnos', alumnosData); }
+        });
+    });
+
+    document.getElementById('fileRespuestas').addEventListener('change', function(e) {
+        respuestasData = [];
+        Papa.parse(e.target.files[0], {
+            header: true, skipEmptyLines: true,
+            complete: function(results) { renderTable(results.data, 'tableRespuestas', respuestasData); }
+        });
+    });
+
+    document.getElementById('btnProcesar').addEventListener('click', async function() {
+        const images = document.getElementById('fileImages').files;
+        if (images.length === 0) return alert('Selecciona al menos una imagen.');
+        if (alumnosData.length === 0) return alert('Carga el archivo de alumnos.');
+
+        const btn = this;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = 'Calificando ...';
+
+        const formData = new FormData();
+        for (let i = 0; i < images.length; i++) {
+            formData.append('images', images[i]);
+        }
+        formData.append('alumnos_data', JSON.stringify(alumnosData));
+        formData.append('respuestas_data', JSON.stringify(respuestasData));
+
+        try {
+            const response = await fetch('/upload', { method: 'POST', body: formData });
+            if(!response.ok) throw new Error('Error al procesar los exámenes en el servidor.');
+
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = downloadUrl;
+            anchor.download = 'resultados_scanexam.xlsx';
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+            window.URL.revokeObjectURL(downloadUrl);
+        } catch (error) {
+            alert(error.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    });
+</script>
+{% endblock %}
